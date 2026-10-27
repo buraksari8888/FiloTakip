@@ -30,6 +30,8 @@ public class VehiclesController(FiloTakipDbContext db) : ControllerBase   // db'
 
     // GET /api/vehicles/5 -> tek araç, yoksa 404
     [HttpGet("{id:int}")]
+    [ProducesResponseType<VehicleDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VehicleDto>> GetById(int id)
     {
         var vehicle = await db.Vehicles
