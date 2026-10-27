@@ -1,0 +1,25 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Angular / Node
+node_modules/
+dist/
+.angular/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Gizli ayarlar
+.env
+appsettings.Development.json
+
+# Editör / işletim sistemi
+.vscode/*
+!.vscode/extensions.json
+Thumbs.db

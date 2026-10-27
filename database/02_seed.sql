@@ -1,0 +1,53 @@
+/* =========================================================
+   FiloTakip - Örnek veriler
+   Çalıştırma: sqlcmd -S localhost -E -i 02_seed.sql
+   ========================================================= */
+
+USE FiloTakip;
+GO
+
+INSERT INTO dbo.Drivers (FirstName, LastName, Phone, LicenseNumber)
+VALUES
+    (N'Ahmet',  N'Yılmaz', '05321112233', 'B-100001'),
+    (N'Ayşe',   N'Demir',  '05334445566', 'B-100002'),
+    (N'Mehmet', N'Çelik',  '05357778899', 'C-100003');
+GO
+
+INSERT INTO dbo.Vehicles (Plate, Brand, Model, ModelYear, SpeedLimitKmh, DriverId)
+VALUES
+    ('34 ABC 123', N'Ford',       N'Transit',  2021, 90,  1),
+    ('34 DEF 456', N'Renault',    N'Clio',     2022, 110, 2),
+    ('06 GHI 789', N'Mercedes',   N'Actros',   2019, 80,  3),
+    ('35 JKL 012', N'Fiat',       N'Doblo',    2020, 90,  NULL),
+    ('16 MNO 345', N'Volkswagen', N'Caddy',    2023, 90,  1);
+GO
+
+-- İstanbul civarında birkaç konum kaydı (gerçek akışı Python simülatörü üretecek)
+DECLARE @now DATETIME2(0) = SYSUTCDATETIME();
+
+INSERT INTO dbo.LocationRecords (VehicleId, Latitude, Longitude, SpeedKmh, FuelPercent, IgnitionOn, RecordedAt)
+VALUES
+    (1, 41.008238, 28.978359,  45.0, 72.50, 1, DATEADD(MINUTE, -10, @now)),
+    (1, 41.015137, 28.979530,  62.5, 72.10, 1, DATEADD(MINUTE,  -5, @now)),
+    (1, 41.022010, 28.983100, 104.0, 71.80, 1, @now),
+    (2, 40.990322, 29.028720,  38.0, 55.00, 1, DATEADD(MINUTE,  -3, @now)),
+    (3, 41.064540, 28.993210,   0.0,  8.40, 0, DATEADD(MINUTE,  -1, @now)),
+    (5, 41.043120, 29.009870,  71.2, 90.00, 1, @now);
+GO
+
+-- 1 numaralı aracın son kaydı hız sınırını (90) aştığı için örnek alarm
+INSERT INTO dbo.Alarms (VehicleId, LocationId, AlarmType, Message)
+SELECT TOP (1) VehicleId, LocationId, 'SpeedLimit', N'Hız sınırı aşıldı: 104 km/s (sınır 90)'
+FROM dbo.LocationRecords
+WHERE VehicleId = 1
+ORDER BY RecordedAt DESC;
+
+INSERT INTO dbo.Alarms (VehicleId, LocationId, AlarmType, Message)
+SELECT TOP (1) VehicleId, LocationId, 'LowFuel', N'Yakıt seviyesi düşük: %8,4'
+FROM dbo.LocationRecords
+WHERE VehicleId = 3
+ORDER BY RecordedAt DESC;
+GO
+
+PRINT N'Örnek veriler eklendi.';
+GO
