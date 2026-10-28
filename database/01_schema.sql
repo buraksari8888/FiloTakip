@@ -97,6 +97,7 @@ SELECT
     v.Plate,
     v.Brand,
     v.Model,
+    v.SpeedLimitKmh,
     d.FirstName + N' ' + d.LastName AS DriverName,
     l.Latitude,
     l.Longitude,

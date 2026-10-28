@@ -10,6 +10,11 @@ Accept: application/json
 
 ###
 
+GET {{FiloTakip.Api_HostAddress}}/api/vehicles/last-locations
+Accept: application/json
+
+###
+
 POST {{FiloTakip.Api_HostAddress}}/api/locations
 Content-Type: application/json
 

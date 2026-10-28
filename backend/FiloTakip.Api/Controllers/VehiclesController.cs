@@ -28,6 +28,28 @@ public class VehiclesController(FiloTakipDbContext db) : ControllerBase   // db'
             .ToListAsync();
     }
 
+    // GET /api/vehicles/last-locations -> her aktif aracın son konumu (harita bunu kullanır)
+    [HttpGet("last-locations")]
+    public async Task<List<VehicleLastLocationDto>> GetLastLocations()
+    {
+        return await db.VehicleLastLocations
+            .OrderBy(v => v.Plate)
+            .Select(v => new VehicleLastLocationDto(
+                v.VehicleId,
+                v.Plate,
+                v.Brand,
+                v.Model,
+                v.SpeedLimitKmh,
+                v.DriverName,
+                v.Latitude,
+                v.Longitude,
+                v.SpeedKmh,
+                v.FuelPercent,
+                v.IgnitionOn,
+                v.RecordedAt))
+            .ToListAsync();
+    }
+
     // GET /api/vehicles/5 -> tek araç, yoksa 404
     [HttpGet("{id:int}")]
     [ProducesResponseType<VehicleDto>(StatusCodes.Status200OK)]

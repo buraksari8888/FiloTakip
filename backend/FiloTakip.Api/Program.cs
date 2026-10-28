@@ -9,6 +9,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<FiloTakipDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("FiloTakip")));
 
+// CORS: tarayıcı, Angular'ın (localhost:4200) bu API'ye (localhost:5275) istek atmasına
+// ancak API izin verirse izin verir
+builder.Services.AddCors(options =>
+    options.AddDefaultPolicy(policy => policy
+        .WithOrigins("http://localhost:4200")
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -24,6 +32,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors();
 
 app.UseAuthorization();
 
