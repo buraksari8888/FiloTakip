@@ -1,0 +1,54 @@
+<h1>Araçlar</h1>
+
+@if (apiError()) {
+  <p class="alert">
+    API'ye ulaşılamıyor. API çalışıyor mu? (<code>backend/FiloTakip.Api</code> klasöründe <code>dotnet run</code>)
+  </p>
+}
+
+@if (vehicles(); as list) {
+  <p class="summary">
+    {{ list.length }} araç
+    · <span [class.danger]="speedingCount() > 0">{{ speedingCount() }} hız ihlali</span>
+    · <span [class.warning]="lowFuelCount() > 0">{{ lowFuelCount() }} düşük yakıt</span>
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Plaka</th>
+          <th>Araç</th>
+          <th>Sürücü</th>
+          <th class="num">Hız</th>
+          <th class="num">Yakıt</th>
+          <th>Kontak</th>
+          <th>Son sinyal</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of list; track v.vehicleId) {
+          <tr>
+            <td class="plate">{{ v.plate }}</td>
+            <td>{{ v.brand }} {{ v.model }}</td>
+            <td>{{ v.driverName ?? '—' }}</td>
+
+            @if (v.recordedAt) {
+              <td class="num" [class.danger]="isSpeeding(v)">
+                {{ v.speedKmh | number: '1.0-1' }} km/s
+                <small>/ {{ v.speedLimitKmh }}</small>
+              </td>
+              <td class="num" [class.warning]="isLowFuel(v)">%{{ v.fuelPercent | number: '1.0-1' }}</td>
+              <td>{{ v.ignitionOn ? 'Açık' : 'Kapalı' }}</td>
+              <td>{{ v.recordedAt | date: 'dd.MM.yyyy HH:mm:ss' }}</td>
+            } @else {
+              <td colspan="4" class="muted">Henüz konum gelmedi</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else if (!apiError()) {
+  <p class="muted">Yükleniyor…</p>
+}

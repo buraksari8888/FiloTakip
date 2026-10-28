@@ -1,1 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
+// Bütün siteye uygulanan stiller ve renkler.
+// Renkler değişken (CSS custom property) olarak tanımlı; component'ler var(--...) ile kullanır.
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --border: #e2e6ec;
+  --text: #1c2430;
+  --muted: #6b7686;
+  --topbar: #1f3a5f;
+  --danger: #c62828;
+  --danger-bg: #fdecea;
+  --warning: #b26a00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+}

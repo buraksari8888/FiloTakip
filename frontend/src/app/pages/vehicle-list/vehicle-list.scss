@@ -1,0 +1,71 @@
+h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.summary {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.alert {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.table-wrap {
+  overflow-x: auto; // dar ekranda tablo kendi içinde kaysın
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+th,
+td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums; // rakamlar alt alta hizalı dursun
+}
+
+.plate {
+  font-weight: 600;
+}
+
+small,
+.muted {
+  color: var(--muted);
+}
+
+.danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.warning {
+  color: var(--warning);
+  font-weight: 600;
+}
