@@ -5,71 +5,23 @@ Kullanım:
     python simulator.py --all                # bütün aktif araçları sür
     python simulator.py --vehicle 2          # sadece 2 numaralı aracı sür
     python simulator.py --all --interval 1 --steps 10
+    python simulator.py --all --speedup 10   # zamanı 10 kat hızlandır (haritada hareket belirgin olsun)
 """
 
 import argparse
+import json
 import math
 import random
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import requests
 
 API_URL = "http://localhost:5275"
 
-# İstanbul rotaları (yaklaşık koordinatlar: enlem, boylam)
-ROUTES = [
-    ("Sahil yolu: Sirkeci - Yeşilköy", [
-        (41.0150, 28.9800),  # Sirkeci
-        (41.0040, 28.9800),  # Ahırkapı
-        (41.0025, 28.9650),  # Kumkapı
-        (41.0030, 28.9500),  # Yenikapı
-        (40.9990, 28.9350),  # Samatya
-        (40.9930, 28.9230),  # Yedikule
-        (40.9860, 28.9050),  # Zeytinburnu
-        (40.9750, 28.8750),  # Bakırköy
-        (40.9620, 28.8300),  # Yeşilköy
-    ]),
-    ("Bağdat Caddesi: Kadıköy - Bostancı", [
-        (40.9905, 29.0250),  # Kadıköy
-        (40.9800, 29.0480),  # Kızıltoprak
-        (40.9750, 29.0640),  # Göztepe
-        (40.9690, 29.0780),  # Erenköy
-        (40.9610, 29.0890),  # Suadiye
-        (40.9530, 29.0960),  # Bostancı
-    ]),
-    ("E-5: Topkapı - Avcılar", [
-        (41.0180, 28.9220),  # Topkapı
-        (41.0070, 28.8950),  # Merter
-        (40.9960, 28.8370),  # Yenibosna
-        (40.9930, 28.7800),  # Küçükçekmece
-        (40.9800, 28.7200),  # Avcılar
-    ]),
-    ("Boğaz (Avrupa): Beşiktaş - Sarıyer", [
-        (41.0420, 29.0060),  # Beşiktaş
-        (41.0480, 29.0270),  # Ortaköy
-        (41.0680, 29.0430),  # Arnavutköy
-        (41.0770, 29.0430),  # Bebek
-        (41.0850, 29.0560),  # Rumelihisarı
-        (41.1050, 29.0560),  # Emirgan
-        (41.1150, 29.0580),  # İstinye
-        (41.1240, 29.0700),  # Yeniköy
-        (41.1380, 29.0580),  # Tarabya
-        (41.1660, 29.0500),  # Sarıyer
-    ]),
-    ("Boğaz (Anadolu): Üsküdar - Beykoz", [
-        (41.0260, 29.0150),  # Üsküdar
-        (41.0360, 29.0300),  # Kuzguncuk
-        (41.0450, 29.0440),  # Beylerbeyi
-        (41.0510, 29.0530),  # Çengelköy
-        (41.0750, 29.0600),  # Kandilli
-        (41.0830, 29.0670),  # Anadoluhisarı
-        (41.0990, 29.0660),  # Kanlıca
-        (41.1060, 29.0790),  # Çubuklu
-        (41.1170, 29.0930),  # Paşabahçe
-        (41.1330, 29.0970),  # Beykoz
-    ]),
-]
+# Gerçek yollara oturtulmuş rotalar (build_routes.py ile oluşturulur)
+ROUTES_FILE = Path(__file__).with_name("routes.json")
 
 FUEL_PERCENT_PER_KM = 0.5   # gösterim için abartılı tüketim (gerçekte ~0.15)
 STOP_CHANCE = 0.3           # durağa varınca durma ihtimali (%30)
@@ -93,9 +45,10 @@ class VehicleSimulator:
         self.plate = vehicle["plate"]
         self.speed_limit = vehicle["speedLimitKmh"]
         self.max_speed = self.speed_limit + 25  # ara sıra sınırı aşsın
-        self.route = route
-        self.lat, self.lon = route[0]
-        self.target_index = 1                   # gidilen durak
+        self.route = route["points"]            # yol üzerindeki noktalar
+        self.stops = set(route["stops"])        # durak olan noktaların sırası
+        self.lat, self.lon = self.route[0]
+        self.target_index = 1                   # gidilen nokta
         self.direction = 1                      # 1: ileri, -1: geri
         self.speed = 0.0
         self.fuel = random.uniform(40, 95)
@@ -122,23 +75,24 @@ class VehicleSimulator:
             to_target_km = distance_km(self.lat, self.lon, target_lat, target_lon)
 
             if to_target_km > remaining_km:
-                # Durağa varmadan yolun bir kısmını git (aradaki doğru üzerinde ilerle)
+                # Noktaya varmadan yolun bir kısmını git (aradaki doğru üzerinde ilerle)
                 ratio = remaining_km / to_target_km
                 self.lat += (target_lat - self.lat) * ratio
                 self.lon += (target_lon - self.lon) * ratio
                 break
 
-            # Durağa vardık, sıradakine geç
+            # Noktaya vardık, sıradakine geç
             self.lat, self.lon = target_lat, target_lon
             remaining_km -= to_target_km
+            arrived_index = self.target_index
             self._next_target()
-            if random.random() < STOP_CHANCE:
+            if arrived_index in self.stops and random.random() < STOP_CHANCE:
                 self.stop_ticks = random.randint(1, 3)
                 self.speed = 0.0
                 break
 
     def _next_target(self):
-        """Sıradaki durağı seç; rotanın sonuna gelince geri dön."""
+        """Sıradaki noktayı seç; rotanın sonuna gelince geri dön."""
         next_index = self.target_index + self.direction
         if not 0 <= next_index < len(self.route):
             self.direction *= -1
@@ -156,6 +110,11 @@ class VehicleSimulator:
             "ignitionOn": True,
             "recordedAt": datetime.now(timezone.utc).isoformat(),
         }
+
+
+def load_routes():
+    """routes.json'daki rotaları okur: [{"name", "points": [[enlem, boylam], ...], "stops": [...]}, ...]"""
+    return json.loads(ROUTES_FILE.read_text(encoding="utf-8"))
 
 
 def get_vehicles():
@@ -195,8 +154,10 @@ def print_vehicles():
     print("Tek bir aracı sürmek için:   python simulator.py --vehicle <numara>")
 
 
-def run(sims, interval, steps):
+def run(sims, interval, steps, speedup):
     """Her turda bütün araçları bir adım ilerletir ve konumlarını gönderir."""
+    if speedup != 1:
+        print(f"Zaman {speedup:g} kat hızlı: her {interval:g} saniyede {interval * speedup:g} saniyelik yol gidilir")
     for sim in sims:
         print(f"{sim.plate:<12} yola çıktı (hız sınırı {sim.speed_limit} km/s)")
     print("Durdurmak için Ctrl+C\n")
@@ -204,7 +165,7 @@ def run(sims, interval, steps):
     step = 0
     while steps is None or step < steps:
         for sim in sims:
-            sim.step(interval)
+            sim.step(interval * speedup)
             payload = sim.to_payload()
             try:
                 location_id = send_location(payload)
@@ -228,6 +189,7 @@ def main():
     group.add_argument("--vehicle", type=int, help="sadece bu numaralı aracı sür")
     parser.add_argument("--interval", type=float, default=3, help="kaç saniyede bir konum gönderilsin (varsayılan 3)")
     parser.add_argument("--steps", type=int, help="kaç tur sürülsün (verilmezse Ctrl+C'ye kadar)")
+    parser.add_argument("--speedup", type=float, default=1, help="zaman kaç kat hızlı aksın (varsayılan 1 = gerçek zaman)")
     args = parser.parse_args()
 
     try:
@@ -244,8 +206,11 @@ def main():
             return
 
         # Her araca sırayla bir rota ver (5'ten fazla araç olursa rotalar tekrar kullanılır)
-        sims = [VehicleSimulator(v, ROUTES[i % len(ROUTES)][1]) for i, v in enumerate(vehicles)]
-        run(sims, args.interval, args.steps)
+        routes = load_routes()
+        sims = [VehicleSimulator(v, routes[i % len(routes)]) for i, v in enumerate(vehicles)]
+        run(sims, args.interval, args.steps, args.speedup)
+    except FileNotFoundError:
+        print(f"{ROUTES_FILE.name} bulunamadı. Önce rotaları oluştur: python build_routes.py")
     except requests.ConnectionError:
         print("API'ye bağlanılamadı. API çalışıyor mu? (backend/FiloTakip.Api klasöründe: dotnet run)")
     except KeyboardInterrupt:
