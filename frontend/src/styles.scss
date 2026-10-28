@@ -23,3 +23,57 @@ body {
   background: var(--bg);
   color: var(--text);
 }
+
+// Sayfaların üstündeki hata kutusu (liste ve harita)
+.alert {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+// Haritadaki araç işareti. Leaflet bu HTML'i kendisi oluşturduğu için stili burada (genel dosyada) olmalı.
+.vehicle-marker {
+  background: var(--topbar);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+
+  .label {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  &.speeding {
+    background: var(--danger);
+
+    .label {
+      color: var(--danger);
+    }
+  }
+}
+
+.leaflet-popup-content {
+  font-size: 13px;
+  line-height: 1.5;
+
+  .danger {
+    color: var(--danger);
+    font-weight: 600;
+  }
+
+  .warning {
+    color: var(--warning);
+    font-weight: 600;
+  }
+}
