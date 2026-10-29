@@ -51,15 +51,25 @@ public class LocationsController(FiloTakipDbContext db) : ControllerBase
 
         db.LocationRecords.Add(record);   // henüz veritabanına gitmedi, sadece "eklenecek" diye işaretlendi
 
-        if (AlarmRules.IsNewSpeedViolation(speedLimitKmh.Value, previousSpeedKmh, record.SpeedKmh))
+        if (AlarmRules.IsSpeeding(speedLimitKmh.Value, record.SpeedKmh))
         {
-            db.Alarms.Add(new Alarm
+            // Bu aracın son hız alarmı ne zamandı? (sadece araç hızlıyken soruyoruz,
+            // her konumda gereksiz yere veritabanına gitmeyelim)
+            var lastSpeedAlarmAt = await db.Alarms
+                .Where(a => a.VehicleId == record.VehicleId && a.AlarmType == AlarmTypes.SpeedLimit)
+                .MaxAsync(a => (DateTime?)a.CreatedAt);
+
+            if (AlarmRules.ShouldCreateSpeedAlarm(
+                    speedLimitKmh.Value, previousSpeedKmh, record.SpeedKmh, lastSpeedAlarmAt, DateTime.UtcNow))
             {
-                VehicleId = record.VehicleId,
-                Location = record,        // LocationId'yi EF Core, konum kaydedildikten sonra kendisi doldurur
-                AlarmType = AlarmTypes.SpeedLimit,
-                Message = AlarmRules.SpeedViolationMessage(speedLimitKmh.Value, record.SpeedKmh)
-            });
+                db.Alarms.Add(new Alarm
+                {
+                    VehicleId = record.VehicleId,
+                    Location = record,        // LocationId'yi EF Core, konum kaydedildikten sonra kendisi doldurur
+                    AlarmType = AlarmTypes.SpeedLimit,
+                    Message = AlarmRules.SpeedViolationMessage(speedLimitKmh.Value, record.SpeedKmh)
+                });
+            }
         }
 
         // Konum ve (varsa) alarm tek seferde kaydedilir: ya ikisi birden ya hiçbiri

@@ -6,15 +6,40 @@ namespace FiloTakip.Api.Services;
 // Veritabanına dokunmaz, sadece hesap yapar; bu yüzden okuması ve test etmesi kolaydır.
 public static class AlarmRules
 {
+    // Sınırı bu kadar aşmadıkça alarm yok (90'lık yolda 95'e kadar göz yumulur)
+    public const decimal SpeedToleranceKmh = 5;
+
+    // Aynı araca bu süre içinde ikinci hız alarmı verilmez
+    // (araç sınırın etrafında gidip geldiğinde birkaç saniyede bir alarm yağmasın)
+    public static readonly TimeSpan SpeedAlarmCooldown = TimeSpan.FromMinutes(5);
+
     private static readonly CultureInfo Turkish = CultureInfo.GetCultureInfo("tr-TR");
 
-    // Hız alarmı sadece ihlalin BAŞLADIĞI anda üretilir: önceki konumda sınırın altındaydı, şimdi üstünde.
-    // Böylece araç 5 dakika boyunca hızlı giderse 100 değil, 1 alarm oluşur.
-    public static bool IsNewSpeedViolation(short speedLimitKmh, decimal? previousSpeedKmh, decimal currentSpeedKmh)
+    // Hız, toleransla birlikte sınırın üstünde mi?
+    public static bool IsSpeeding(short speedLimitKmh, decimal speedKmh) =>
+        speedKmh > speedLimitKmh + SpeedToleranceKmh;
+
+    // Yeni bir hız alarmı üretilmeli mi?
+    public static bool ShouldCreateSpeedAlarm(
+        short speedLimitKmh,
+        decimal? previousSpeedKmh,
+        decimal currentSpeedKmh,
+        DateTime? lastSpeedAlarmAt,
+        DateTime now)
     {
-        var isSpeeding = currentSpeedKmh > speedLimitKmh;
-        var wasSpeeding = previousSpeedKmh is not null && previousSpeedKmh > speedLimitKmh;
-        return isSpeeding && !wasSpeeding;
+        if (!IsSpeeding(speedLimitKmh, currentSpeedKmh))
+            return false;
+
+        // İhlal zaten sürüyorsa (önceki konumda da hızlıydı) yeni alarm yok:
+        // araç 5 dakika boyunca hızlı giderse 100 değil, 1 alarm oluşsun
+        if (previousSpeedKmh is decimal previous && IsSpeeding(speedLimitKmh, previous))
+            return false;
+
+        // Son 5 dakikada bu araca zaten hız alarmı verildiyse yeni alarm yok
+        if (lastSpeedAlarmAt is DateTime last && now - last < SpeedAlarmCooldown)
+            return false;
+
+        return true;
     }
 
     public static string SpeedViolationMessage(short speedLimitKmh, decimal speedKmh) =>
