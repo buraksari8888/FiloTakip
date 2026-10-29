@@ -1,0 +1,60 @@
+<div class="header">
+  <h1>Alarmlar</h1>
+
+  <div class="actions">
+    <div class="filter" role="group" aria-label="Filtre">
+      <button type="button" [class.active]="!unreadOnly()" (click)="unreadOnly.set(false)">Tümü</button>
+      <button type="button" [class.active]="unreadOnly()" (click)="unreadOnly.set(true)">
+        Okunmamış ({{ unreadCount() }})
+      </button>
+    </div>
+    <button type="button" class="btn" [disabled]="unreadCount() === 0" (click)="markAllAsRead()">
+      Tümünü okundu işaretle
+    </button>
+  </div>
+</div>
+
+@if (apiError()) {
+  <p class="alert">
+    API'ye ulaşılamıyor. API çalışıyor mu? (<code>backend/FiloTakip.Api</code> klasöründe <code>dotnet run</code>)
+  </p>
+}
+
+@if (alarms(); as list) {
+  @if (list.length === 0) {
+    <p class="muted">{{ unreadOnly() ? 'Okunmamış alarm yok 🎉' : 'Henüz alarm yok.' }}</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Zaman</th>
+            <th>Plaka</th>
+            <th>Tür</th>
+            <th>Mesaj</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of list; track a.alarmId) {
+            <tr [class.unread]="!a.isRead">
+              <td>{{ a.createdAt | date: 'dd.MM.yyyy HH:mm:ss' }}</td>
+              <td class="plate">{{ a.plate }}</td>
+              <td><span class="chip" [class]="a.alarmType">{{ typeLabels[a.alarmType] }}</span></td>
+              <td>{{ a.message }}</td>
+              <td class="status">
+                @if (a.isRead) {
+                  <span class="muted">Okundu</span>
+                } @else {
+                  <button type="button" class="btn small" (click)="markAsRead(a)">Okundu işaretle</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+} @else if (!apiError()) {
+  <p class="muted">Yükleniyor…</p>
+}

@@ -24,6 +24,31 @@ body {
   color: var(--text);
 }
 
+// Genel buton
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--topbar);
+  border-radius: 6px;
+  background: var(--topbar);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.15);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &.small {
+    padding: 3px 10px;
+    font-size: 12px;
+  }
+}
+
 // Sayfaların üstündeki hata kutusu (liste ve harita)
 .alert {
   padding: 10px 14px;

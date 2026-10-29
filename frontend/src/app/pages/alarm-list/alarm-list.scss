@@ -1,0 +1,113 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+// "Tümü / Okunmamış" düğme grubu
+.filter {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface);
+
+  button {
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    cursor: pointer;
+
+    &.active {
+      background: var(--topbar);
+      color: #fff;
+    }
+  }
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+th,
+td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+// Okunmamış alarmlar öne çıksın
+tr.unread td {
+  font-weight: 600;
+  background: var(--danger-bg);
+}
+
+.plate {
+  font-weight: 600;
+}
+
+.status {
+  text-align: right;
+}
+
+.muted {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+// Alarm türü etiketi
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--border);
+  color: var(--text);
+
+  &.SpeedLimit {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  &.LowFuel {
+    background: var(--warning);
+    color: #fff;
+  }
+}

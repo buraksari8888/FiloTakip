@@ -3,6 +3,12 @@
   <nav>
     <a routerLink="/harita" routerLinkActive="active">Harita</a>
     <a routerLink="/araclar" routerLinkActive="active">Araçlar</a>
+    <a routerLink="/alarmlar" routerLinkActive="active">
+      Alarmlar
+      @if (unreadAlarms() > 0) {
+        <span class="badge" [attr.aria-label]="unreadAlarms() + ' okunmamış alarm'">{{ unreadAlarms() }}</span>
+      }
+    </a>
   </nav>
 </header>
 
