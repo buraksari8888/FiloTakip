@@ -10,7 +10,8 @@ INSERT INTO dbo.Drivers (FirstName, LastName, Phone, LicenseNumber)
 VALUES
     (N'Ahmet',  N'Yılmaz', '05321112233', 'B-100001'),
     (N'Ayşe',   N'Demir',  '05334445566', 'B-100002'),
-    (N'Mehmet', N'Çelik',  '05357778899', 'C-100003');
+    (N'Mehmet', N'Çelik',  '05357778899', 'C-100003'),
+    (N'Zeynep', N'Kaya',   '05362223344', 'B-100004');
 GO
 
 INSERT INTO dbo.Vehicles (Plate, Brand, Model, ModelYear, SpeedLimitKmh, DriverId)
@@ -19,7 +20,7 @@ VALUES
     ('34 DEF 456', N'Renault',    N'Clio',     2022, 110, 2),
     ('06 GHI 789', N'Mercedes',   N'Actros',   2019, 80,  3),
     ('35 JKL 012', N'Fiat',       N'Doblo',    2020, 90,  NULL),
-    ('16 MNO 345', N'Volkswagen', N'Caddy',    2023, 90,  1);
+    ('16 MNO 345', N'Volkswagen', N'Caddy',    2023, 90,  4);
 GO
 
 -- İstanbul civarında birkaç konum kaydı (gerçek akışı Python simülatörü üretecek)
