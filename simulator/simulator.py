@@ -47,9 +47,14 @@ class VehicleSimulator:
         self.max_speed = self.speed_limit + 25  # ara sıra sınırı aşsın
         self.route = route["points"]            # yol üzerindeki noktalar
         self.stops = set(route["stops"])        # durak olan noktaların sırası
-        self.lat, self.lon = self.route[0]
-        self.target_index = 1                   # gidilen nokta
-        self.direction = 1                      # 1: ileri, -1: geri
+
+        # Rotanın rastgele bir noktasından, rastgele bir yönde yola çık
+        # (her çalıştırmada araçlar farklı yerlerde olsun)
+        self.target_index = random.randrange(len(self.route))
+        self.lat, self.lon = self.route[self.target_index]
+        self.direction = random.choice((1, -1))  # 1: ileri, -1: geri
+        self._next_target()                      # gidilen nokta: bir sonraki (uçtaysak yön kendiliğinden döner)
+
         self.speed = 0.0
         self.fuel = random.uniform(40, 95)
         self.stop_ticks = 0                     # kaç adım daha duracak
