@@ -1,6 +1,7 @@
 using FiloTakip.Api.Data;
 using FiloTakip.Api.Dtos;
 using FiloTakip.Api.Models;
+using FiloTakip.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,12 +19,24 @@ public class LocationsController(FiloTakipDbContext db) : ControllerBase
     {
         // Olmayan bir araca konum yazılmasın (veritabanındaki FOREIGN KEY de engeller,
         // ama burada kontrol edersek kullanıcıya anlaşılır bir hata verebiliriz)
-        var vehicleExists = await db.Vehicles.AnyAsync(v => v.VehicleId == dto.VehicleId);
-        if (!vehicleExists)
+        var speedLimitKmh = await db.Vehicles
+            .Where(v => v.VehicleId == dto.VehicleId)
+            .Select(v => (short?)v.SpeedLimitKmh)
+            .FirstOrDefaultAsync();
+        if (speedLimitKmh is null)
         {
             ModelState.AddModelError(nameof(dto.VehicleId), $"{dto.VehicleId} numaralı araç bulunamadı.");
             return ValidationProblem(ModelState);
         }
+
+        // Aracın bir önceki hızı: yeni bir hız ihlali mi başladı, yoksa zaten süren bir ihlal mi?
+        // (IX_LocationRecords_Vehicle_Time index'i tam bu sorgu için var, milyonlarca kayıtta da hızlı çalışır)
+        var previousSpeedKmh = await db.LocationRecords
+            .Where(l => l.VehicleId == dto.VehicleId)
+            .OrderByDescending(l => l.RecordedAt)
+            .ThenByDescending(l => l.LocationId)   // RecordedAt saniye hassasiyetinde; aynı saniyede gelenlerde son ekleneni al
+            .Select(l => (decimal?)l.SpeedKmh)
+            .FirstOrDefaultAsync();
 
         var record = new LocationRecord
         {
@@ -37,7 +50,20 @@ public class LocationsController(FiloTakipDbContext db) : ControllerBase
         };
 
         db.LocationRecords.Add(record);   // henüz veritabanına gitmedi, sadece "eklenecek" diye işaretlendi
-        await db.SaveChangesAsync();      // INSERT burada çalışır, LocationId de dolar
+
+        if (AlarmRules.IsNewSpeedViolation(speedLimitKmh.Value, previousSpeedKmh, record.SpeedKmh))
+        {
+            db.Alarms.Add(new Alarm
+            {
+                VehicleId = record.VehicleId,
+                Location = record,        // LocationId'yi EF Core, konum kaydedildikten sonra kendisi doldurur
+                AlarmType = AlarmTypes.SpeedLimit,
+                Message = AlarmRules.SpeedViolationMessage(speedLimitKmh.Value, record.SpeedKmh)
+            });
+        }
+
+        // Konum ve (varsa) alarm tek seferde kaydedilir: ya ikisi birden ya hiçbiri
+        await db.SaveChangesAsync();
 
         // 201 Created + yeni kaydın adresi (Location başlığında /api/locations/{id})
         return CreatedAtAction(nameof(GetById), new { id = record.LocationId }, ToDto(record));

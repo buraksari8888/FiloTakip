@@ -28,3 +28,20 @@ Content-Type: application/json
 }
 
 ###
+
+GET {{FiloTakip.Api_HostAddress}}/api/alarms?unreadOnly=true
+Accept: application/json
+
+###
+
+GET {{FiloTakip.Api_HostAddress}}/api/alarms/unread-count
+
+###
+
+POST {{FiloTakip.Api_HostAddress}}/api/alarms/1/read
+
+###
+
+POST {{FiloTakip.Api_HostAddress}}/api/alarms/read-all
+
+###
