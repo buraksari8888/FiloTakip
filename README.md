@@ -20,7 +20,7 @@ ve listede gösterir.
 | `backend/` | .NET 10 Web API, EF Core, xUnit | REST API ve birim testleri |
 | `frontend/` | Angular 22, Leaflet | Harita, araç listesi, alarmlar |
 | `simulator/` | Python | Araçlardan konum gönderen simülatör |
-| `reports/` | Python, pandas | Raporlar (yapım aşamasında) |
+| `reports/` | Python, pandas, openpyxl | Günlük filo raporu (ekrana ve Excel'e) |
 
 ## Gerekenler
 
@@ -40,9 +40,11 @@ Her parçayı ayrı bir terminalde çalıştır. Sıra: veritabanı → API → 
 cd database
 sqlcmd -S localhost -E -C -i 01_schema.sql
 sqlcmd -S localhost -E -C -i 02_seed.sql
+sqlcmd -S localhost -E -C -i 03_reports.sql
 ```
 
 > `01_schema.sql` veritabanını silip baştan oluşturur. Çalıştırmadan önce API'yi durdur.
+> Sonra diğer ikisini de tekrar çalıştır (`03_reports.sql` rapor yordamını oluşturur).
 
 ### 2. API
 
@@ -98,7 +100,9 @@ python simulator.py --all --speedup 10
 Araçlar `routes.json` dosyasındaki gerçek yollar üzerinde gider. Rotaları değiştirirsen
 `python build_routes.py` ile yeniden oluştur. Bu komut OSRM yol tarifi servisine internetten istek atar.
 
-### 5. Raporlar (yapım aşamasında)
+### 5. Raporlar
+
+İlk seferde sanal ortamı kur:
 
 ```powershell
 cd reports
@@ -107,6 +111,32 @@ python -m venv .venv
 pip install -r requirements.txt
 python db.py     # veritabanı bağlantısını dener
 ```
+
+Günlük filo raporu: her aracın o günkü mesafesi, hareket süresi, ortalama ve en yüksek hızı, hız alarmı
+sayısı ve yakıt tüketimi.
+
+| Komut | Ne yapar |
+| --- | --- |
+| `python daily_report.py` | Bugünün raporunu ekrana yazar (gün İstanbul saatine göre) |
+| `python daily_report.py --date 2026-10-30` | Belirli bir günün raporu |
+| `--excel` | Ayrıca `filo-raporu-<gün>.xlsx` dosyasına kaydeder (başlıklar, filtre, toplam satırı) |
+| `--excel C:\Raporlar\rapor.xlsx` | Ayrıca bu Excel dosyasına kaydeder |
+
+Hesabın asıl kısmı veritabanında: `dbo.usp_DailyFleetReport` saklı yordamı (`database/03_reports.sql`).
+SSMS'ten de denenebilir (İstanbul saatiyle 30.10.2026 = UTC 29.10 21:00 – 30.10 21:00):
+
+```sql
+EXEC dbo.usp_DailyFleetReport @StartUtc = '2026-10-29 21:00', @EndUtc = '2026-10-30 21:00';
+```
+
+Mesafe ardışık konumlar arasındaki gerçek uzaklıkların toplamıdır (`geography`). Şunlar sayılmaz:
+
+- 2 dakikadan uzun aralar (cihaz kapalıydı, aradaki yol bilinmiyor)
+- 2 km'den uzun tek adımlar (GPS sıçraması ya da simülatör başka bir yerden başladı)
+- Tek adımda %5'ten büyük yakıt düşüşleri (tüketim değil; depo dolumu da sayılmaz)
+
+> Simülatör `--speedup` ile çalıştıysa araçlar gerçek zamandan hızlı ilerler: rapordaki mesafe, hareket
+> süresine göre çok yüksek görünür.
 
 ## Testler
 
@@ -252,6 +282,21 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `api_client.py` | API ile konuşma (HTTP istekleri); hata cevaplarını `ApiError`'a çevirir |
 | `build_routes.py` | Rotaları OSRM ile gerçek yollara oturtur, `routes.json` dosyasını yazar |
 
+### reports
+
+| Dosya | Görevi |
+| --- | --- |
+| `db.py` | Veritabanı bağlantısı (SQLAlchemy + ODBC); tek başına çalışınca bağlantıyı dener |
+| `daily_report.py` | Günlük filo raporu: günün UTC aralığını hesaplar, yordamı çağırır, ekrana ve Excel'e yazar |
+
+### database
+
+| Dosya | Görevi |
+| --- | --- |
+| `01_schema.sql` | Veritabanı, tablolar, index'ler, view (veritabanını silip baştan oluşturur) |
+| `02_seed.sql` | Örnek sürücüler ve araçlar |
+| `03_reports.sql` | Rapor saklı yordamı (`usp_DailyFleetReport`) |
+
 ## Tablolar
 
 - **Drivers**: sürücüler
@@ -259,3 +304,4 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 - **LocationRecords**: araçlardan gelen konum / hız / yakıt kayıtları
 - **Alarms**: hız ihlali, düşük yakıt gibi uyarılar
 - **vw_VehicleLastLocation**: her aracın son konumu (view)
+- **usp_DailyFleetReport**: günlük filo raporu (saklı yordam)
