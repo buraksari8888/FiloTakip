@@ -156,6 +156,28 @@ Simülatör de aynı biçimde yazar: `14:03:12 INFO    34 ABC 123   #8040  41.01
 Hız ihlali simülatör için normal bir olay olduğundan INFO seviyesinde, `⚠️ HIZ SINIRI AŞILDI` işaretiyle yazılır.
 Konum gönderilemezse ERROR yazılır. `--log-level ERROR` sadece sorunları, `--log-level DEBUG` HTTP isteklerini de gösterir.
 
+## Hatalar
+
+API bütün hataları aynı biçimde döner (ProblemDetails, RFC 9457):
+
+```json
+{ "title": "Sunucuda beklenmeyen bir hata oluştu.", "status": 500, "traceId": "00-a14b7ac8dd3d5adc...-00" }
+```
+
+| Kod | Ne zaman |
+| --- | --- |
+| 400 | Gönderilen veri geçersiz; `errors` alanı hangi alanın neden reddedildiğini yazar |
+| 404 | Kayıt ya da adres yok |
+| 500 | Beklenmeyen hata (ör. veritabanı kapalı). Kullanıcıya ayrıntı gösterilmez, ayrıntı API'nin logundadır |
+
+**Hata kodu (traceId) ile hatayı bulmak:** Arayüz sunucu hatalarında "Hata kodu: 00-..." gösterir, simülatör de
+aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (yığın izi dahil) bulunur.
+
+- **Arayüz:** API'ye hiç ulaşılamıyorsa "API'ye ulaşılamıyor", API cevap verip hata döndüyse "Sunucuda bir hata
+  oluştu" ve hata kodu gösterilir. Alarmı okundu işaretleme başarısız olursa hangi işlemin başarısız olduğu yazar.
+- **Simülatör:** Bir konum kaydedilemezse hatayı yazar ve sonraki konumla devam eder. API 5 saniyede cevap
+  vermezse vazgeçer. Açılışta bir hata olursa çıkış kodu 1 ile biter, başarılıysa 0 (`$LASTEXITCODE`).
+
 ## API
 
 | İstek | Açıklama |
@@ -188,6 +210,7 @@ Konum gönderilemezse ERROR yazılır. `--log-level ERROR` sadece sorunları, `-
 | `Data/` | EF Core veritabanı bağlantısı (`FiloTakipDbContext`) |
 | `Models/` | Veritabanı tablolarının C# karşılıkları |
 | `Dtos/` | API'nin aldığı ve döndüğü veri biçimleri |
+| `Errors/` | Yakalanmamış hataları loglayıp standart 500 cevabı dönen `GlobalExceptionHandler` |
 
 Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 
@@ -198,7 +221,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `vehicles/` | Araç modeli, API servisi, canlı veri, araç listesi sayfası |
 | `alarms/` | Alarm modeli, API servisi, okunmamış sayısı, alarm listesi sayfası |
 | `map/` | Leaflet haritası sayfası |
-| `shared/` | Birden fazla sayfanın kullandığı parçalar (API hata kutusu) |
+| `shared/` | Birden fazla sayfanın kullandığı parçalar (hataya göre mesaj gösteren API hata kutusu) |
 
 ### simulator
 
@@ -206,7 +229,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | --- | --- |
 | `simulator.py` | Komut satırı ve ana döngü |
 | `vehicle.py` | Aracın hareketi (konum, hız, yakıt) |
-| `api_client.py` | API ile konuşma (HTTP istekleri) |
+| `api_client.py` | API ile konuşma (HTTP istekleri); hata cevaplarını `ApiError`'a çevirir |
 | `build_routes.py` | Rotaları OSRM ile gerçek yollara oturtur, `routes.json` dosyasını yazar |
 
 ## Tablolar
