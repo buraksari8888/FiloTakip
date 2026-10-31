@@ -16,10 +16,11 @@ builder.Services.AddScoped<LocationService>();
 builder.Services.AddScoped<AlarmService>();
 
 // CORS: tarayıcı, Angular'ın (localhost:4200) bu API'ye (localhost:5275) istek atmasına
-// ancak API izin verirse izin verir
+// ancak API izin verirse izin verir. İzinli adresler: appsettings > Cors > AllowedOrigins
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy => policy
-        .WithOrigins("http://localhost:4200")
+        .WithOrigins(allowedOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod()));
 

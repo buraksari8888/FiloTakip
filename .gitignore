@@ -17,7 +17,6 @@ venv/
 
 # Gizli ayarlar
 .env
-appsettings.Development.json
 
 # Editör / işletim sistemi
 .vscode/*
