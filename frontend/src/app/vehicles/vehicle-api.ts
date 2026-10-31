@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import { Observable } from 'rxjs';
+import { LocationUpdate } from '../core/live-hub';
 import { environment } from '../../environments/environment';
 import { VehicleLastLocation } from './vehicle-last-location';
 
@@ -11,5 +12,12 @@ export class VehicleApi {
 
   getLastLocations(): Observable<VehicleLastLocation[]> {
     return this.http.get<VehicleLastLocation[]>(`${environment.apiUrl}/vehicles/last-locations`);
+  }
+
+  // Aracın son `minutes` dakikadaki konumları, eskiden yeniye (haritadaki iz için)
+  getRecentLocations(vehicleId: number, minutes: number): Observable<LocationUpdate[]> {
+    return this.http.get<LocationUpdate[]>(`${environment.apiUrl}/vehicles/${vehicleId}/locations`, {
+      params: { minutes },
+    });
   }
 }

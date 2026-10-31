@@ -15,6 +15,11 @@ Accept: application/json
 
 ###
 
+GET {{FiloTakip.Api_HostAddress}}/api/vehicles/1/locations?minutes=30
+Accept: application/json
+
+###
+
 POST {{FiloTakip.Api_HostAddress}}/api/locations
 Content-Type: application/json
 
