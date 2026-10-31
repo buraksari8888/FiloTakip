@@ -1,12 +1,18 @@
 using FiloTakip.Api.Data;
 using FiloTakip.Api.Dtos;
+using FiloTakip.Api.Hubs;
 using FiloTakip.Api.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiloTakip.Api.Services;
 
 // Araçlardan gelen konumları kaydeder ve okur
-public class LocationService(FiloTakipDbContext db, AlarmService alarms, ILogger<LocationService> logger)
+public class LocationService(
+    FiloTakipDbContext db,
+    AlarmService alarms,
+    IHubContext<LiveHub, ILiveClient> live,
+    ILogger<LocationService> logger)
 {
     // Konumu kaydeder, gerekiyorsa alarm üretir. Araç bulunamazsa null döner.
     public async Task<LocationDto?> CreateAsync(CreateLocationDto dto, CancellationToken cancellationToken)
@@ -59,7 +65,13 @@ public class LocationService(FiloTakipDbContext db, AlarmService alarms, ILogger
         logger.LogDebug("Konum #{LocationId} kaydedildi: {Plate} {SpeedKmh} km/s",
             record.LocationId, vehicle.Plate, record.SpeedKmh);
 
-        return ToDto(record);
+        // Açık ekranlara haber ver (kaydettikten sonra: kaydedilmemiş bir konumu göstermesinler)
+        var location = ToDto(record);
+        await live.Clients.All.LocationAdded(location);
+        if (alarm is not null)
+            await live.Clients.All.AlarmsChanged();
+
+        return location;
     }
 
     // Konum yoksa null döner
