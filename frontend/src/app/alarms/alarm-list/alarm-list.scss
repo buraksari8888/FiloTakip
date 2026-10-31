@@ -41,37 +41,6 @@ h1 {
   }
 }
 
-.table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  white-space: nowrap;
-}
-
-th,
-td {
-  padding: 10px 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
-
-th {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
 // Okunmamış alarmlar öne çıksın
 tr.unread td {
   font-weight: 600;

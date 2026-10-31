@@ -11,13 +11,14 @@ import {
   viewChild,
 } from '@angular/core';
 import * as L from 'leaflet';
-import { isLowFuel, isSpeeding, VehicleLastLocation } from '../../models/vehicle-last-location';
-import { LiveVehicles } from '../../services/live-vehicles';
+import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
+import { LiveVehicles } from '../../vehicles/live-vehicles';
+import { isLowFuel, isSpeeding, VehicleLastLocation } from '../../vehicles/vehicle-last-location';
 
 const ISTANBUL: L.LatLngTuple = [41.03, 28.98];
 
 @Component({
-  imports: [],
+  imports: [ApiErrorAlert],
   selector: 'app-vehicle-map',
   styleUrl: './vehicle-map.scss',
   templateUrl: './vehicle-map.html',

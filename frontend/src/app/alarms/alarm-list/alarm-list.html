@@ -15,9 +15,7 @@
 </div>
 
 @if (apiError()) {
-  <p class="alert">
-    API'ye ulaşılamıyor. API çalışıyor mu? (<code>backend/FiloTakip.Api</code> klasöründe <code>dotnet run</code>)
-  </p>
+  <app-api-error-alert />
 }
 
 @if (alarms(); as list) {

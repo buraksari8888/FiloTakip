@@ -1,10 +1,11 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
-import { isLowFuel, isSpeeding } from '../../models/vehicle-last-location';
-import { LiveVehicles } from '../../services/live-vehicles';
+import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
+import { LiveVehicles } from '../live-vehicles';
+import { isLowFuel, isSpeeding } from '../vehicle-last-location';
 
 @Component({
-  imports: [DatePipe, DecimalPipe],
+  imports: [ApiErrorAlert, DatePipe, DecimalPipe],
   selector: 'app-vehicle-list',
   styleUrl: './vehicle-list.scss',
   templateUrl: './vehicle-list.html',

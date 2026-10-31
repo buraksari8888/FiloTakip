@@ -1,28 +1,28 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Alarm } from '../models/alarm';
-
-const API_URL = 'http://localhost:5275/api';
+import { environment } from '../../environments/environment';
+import { Alarm } from './alarm';
 
 // Alarm endpoint'leriyle konuşan servis
 @Service()
 export class AlarmApi {
   private readonly http = inject(HttpClient);
+  private readonly baseUrl = `${environment.apiUrl}/alarms`;
 
   getAlarms(unreadOnly: boolean): Observable<Alarm[]> {
-    return this.http.get<Alarm[]>(`${API_URL}/alarms`, { params: { unreadOnly } });
+    return this.http.get<Alarm[]>(this.baseUrl, { params: { unreadOnly } });
   }
 
   getUnreadCount(): Observable<number> {
-    return this.http.get<number>(`${API_URL}/alarms/unread-count`);
+    return this.http.get<number>(`${this.baseUrl}/unread-count`);
   }
 
   markAsRead(alarmId: number): Observable<void> {
-    return this.http.post<void>(`${API_URL}/alarms/${alarmId}/read`, null);
+    return this.http.post<void>(`${this.baseUrl}/${alarmId}/read`, null);
   }
 
   markAllAsRead(): Observable<void> {
-    return this.http.post<void>(`${API_URL}/alarms/read-all`, null);
+    return this.http.post<void>(`${this.baseUrl}/read-all`, null);
   }
 }

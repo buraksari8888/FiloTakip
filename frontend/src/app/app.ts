@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { LiveAlarms } from './services/live-alarms';
+import { LiveAlarms } from './alarms/live-alarms';
 
 // Ana bileşen: üst menü + sayfaların çizildiği alan
 @Component({

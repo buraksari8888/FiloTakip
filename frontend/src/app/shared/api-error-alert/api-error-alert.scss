@@ -1,0 +1,11 @@
+// Bileşenin kendi etiketi (<app-api-error-alert>) varsayılan olarak satır içi (inline) olur; blok olsun
+:host {
+  display: block;
+}
+
+.alert {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}

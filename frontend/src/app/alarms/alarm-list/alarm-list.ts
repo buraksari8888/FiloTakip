@@ -2,14 +2,15 @@ import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, combineLatest, EMPTY, merge, Subject, switchMap, tap, timer } from 'rxjs';
-import { Alarm, ALARM_TYPE_LABELS } from '../../models/alarm';
-import { AlarmApi } from '../../services/alarm-api';
-import { LiveAlarms } from '../../services/live-alarms';
+import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
+import { Alarm, ALARM_TYPE_LABELS } from '../alarm';
+import { AlarmApi } from '../alarm-api';
+import { LiveAlarms } from '../live-alarms';
 
 const REFRESH_MS = 3000;
 
 @Component({
-  imports: [DatePipe],
+  imports: [ApiErrorAlert, DatePipe],
   selector: 'app-alarm-list',
   styleUrl: './alarm-list.scss',
   templateUrl: './alarm-list.html',
