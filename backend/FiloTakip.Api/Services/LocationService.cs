@@ -30,13 +30,14 @@ public class LocationService(
             return null;
         }
 
-        // Aracın bir önceki hızı: yeni bir hız ihlali mi başladı, yoksa zaten süren bir ihlal mi?
-        // (IX_LocationRecords_Vehicle_Time index'i tam bu sorgu için var, milyonlarca kayıtta da hızlı çalışır)
-        var previousSpeedKmh = await db.LocationRecords
+        // Aracın bir önceki konumu: yeni bir ihlal mi başladı (hız sınırı aşıldı, yakıt eşiğin altına indi),
+        // yoksa zaten süren bir durum mu? (IX_LocationRecords_Vehicle_Time index'i tam bu sorgu için var,
+        // milyonlarca kayıtta da hızlı çalışır). AsNoTracking: sadece okuyoruz, EF Core değişiklik takibi yapmasın.
+        var previous = await db.LocationRecords
+            .AsNoTracking()
             .Where(l => l.VehicleId == dto.VehicleId)
             .OrderByDescending(l => l.RecordedAt)
             .ThenByDescending(l => l.LocationId)   // RecordedAt saniye hassasiyetinde; aynı saniyede gelenlerde son ekleneni al
-            .Select(l => (decimal?)l.SpeedKmh)
             .FirstOrDefaultAsync(cancellationToken);
 
         var record = new LocationRecord
@@ -51,15 +52,15 @@ public class LocationService(
         };
 
         db.LocationRecords.Add(record);   // henüz veritabanına gitmedi, sadece "eklenecek" diye işaretlendi
-        var alarm = await alarms.AddSpeedAlarmIfNeededAsync(record, vehicle.SpeedLimitKmh, previousSpeedKmh, cancellationToken);
+        var newAlarms = await alarms.AddAlarmsIfNeededAsync(record, vehicle.SpeedLimitKmh, previous, cancellationToken);
 
-        // Konum ve (varsa) alarm tek seferde kaydedilir: ya ikisi birden ya hiçbiri
+        // Konum ve (varsa) alarmlar tek seferde kaydedilir: ya hepsi ya hiçbiri
         await db.SaveChangesAsync(cancellationToken);
 
         // Loglar kaydettikten SONRA: kaydetme hata verirse "alarm üretildi" diye yanlış bilgi yazmasınlar
-        if (alarm is not null)
-            logger.LogInformation("Hız alarmı #{AlarmId}: {Plate} {SpeedKmh} km/s (sınır {SpeedLimitKmh})",
-                alarm.AlarmId, vehicle.Plate, record.SpeedKmh, vehicle.SpeedLimitKmh);
+        foreach (var alarm in newAlarms)
+            logger.LogInformation("Alarm #{AlarmId} ({AlarmType}): {Plate} {Message}",
+                alarm.AlarmId, alarm.AlarmType, vehicle.Plate, alarm.Message);
 
         // Her konumda yazılır, bu yüzden Debug: normalde gizli, gerekince appsettings'ten açılır
         logger.LogDebug("Konum #{LocationId} kaydedildi: {Plate} {SpeedKmh} km/s",
@@ -68,7 +69,7 @@ public class LocationService(
         // Açık ekranlara haber ver (kaydettikten sonra: kaydedilmemiş bir konumu göstermesinler)
         var location = ToDto(record);
         await live.Clients.All.LocationAdded(location);
-        if (alarm is not null)
+        if (newAlarms.Count > 0)
             await live.Clients.All.AlarmsChanged();
 
         return location;

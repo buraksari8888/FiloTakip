@@ -87,4 +87,75 @@ public class AlarmRulesTests
     {
         Assert.Equal(expected, AlarmRules.SpeedViolationMessage(Limit, (decimal)speedKmh));
     }
+
+    // ---------- Düşük yakıt (eşik %15) ----------
+
+    [Theory]
+    [InlineData(15.1, 14.9, true)]    // eşiğin altına yeni indi
+    [InlineData(15, 14.9, true)]      // tam %15 düşük sayılmaz, yani önceki konumda yakıt yeterliydi
+    [InlineData(14.9, 14.5, false)]   // zaten düşüktü: depo dolana kadar her konumda alarm olmasın
+    [InlineData(20, 15, false)]       // tam eşikte: henüz düşük değil
+    [InlineData(5, 100, false)]       // depo doldu
+    public void ShouldCreateLowFuelAlarm_OnlyWhenFallingBelowThreshold(double previous, double current, bool expected)
+    {
+        var result = AlarmRules.ShouldCreateLowFuelAlarm((decimal)previous, (decimal)current, lastLowFuelAlarmAt: null, Now);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ShouldCreateLowFuelAlarm_FirstLocationOfVehicle_ReturnsTrue()
+    {
+        var result = AlarmRules.ShouldCreateLowFuelAlarm(previousFuelPercent: null, 8, lastLowFuelAlarmAt: null, Now);
+
+        Assert.True(result);
+    }
+
+    [Theory]
+    [InlineData(3, false)]    // sensör dalgalandı (%14,9 -> %15,2 -> %14,8): 3 dakika önce zaten alarm verildi
+    [InlineData(10, true)]    // tam 10 dakika: süre doldu
+    public void ShouldCreateLowFuelAlarm_RespectsCooldown(int minutesSinceLastAlarm, bool expected)
+    {
+        var result = AlarmRules.ShouldCreateLowFuelAlarm(
+            15.2m, 14.8m, lastLowFuelAlarmAt: Now.AddMinutes(-minutesSinceLastAlarm), Now);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData(8.4, "Yakıt seviyesi düşük: %8,4")]
+    [InlineData(14, "Yakıt seviyesi düşük: %14")]
+    public void LowFuelMessage_IsTurkishFormatted(double fuelPercent, string expected)
+    {
+        Assert.Equal(expected, AlarmRules.LowFuelMessage((decimal)fuelPercent));
+    }
+
+    // ---------- Yakıt hırsızlığı (araç dururken 5 puan düşüş) ----------
+
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(2.9, true)]    // GPS dalgalanması: duran araç 1-2 km/s gösterebilir
+    [InlineData(3, false)]
+    [InlineData(40, false)]
+    public void IsStationary_AllowsGpsNoise(double speedKmh, bool expected)
+    {
+        Assert.Equal(expected, AlarmRules.IsStationary((decimal)speedKmh));
+    }
+
+    [Theory]
+    [InlineData(62, 61, false)]     // sensör dalgalanması
+    [InlineData(62, 57.1, false)]   // 4,9 puan: eşiğin altında
+    [InlineData(62, 57, true)]      // tam 5 puan
+    [InlineData(62, 40, true)]
+    [InlineData(62, 70, false)]     // yakıt arttı (depo dolduruldu)
+    public void IsFuelDrain_UsesThreshold(double fuelWhenStopped, double current, bool expected)
+    {
+        Assert.Equal(expected, AlarmRules.IsFuelDrain((decimal)fuelWhenStopped, (decimal)current));
+    }
+
+    [Fact]
+    public void FuelDrainMessage_IsTurkishFormatted()
+    {
+        Assert.Equal("Araç dururken yakıt düştü: %62,5 → %44 (hırsızlık şüphesi)", AlarmRules.FuelDrainMessage(62.5m, 44m));
+    }
 }

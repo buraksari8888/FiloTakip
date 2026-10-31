@@ -17,6 +17,7 @@ export interface VehicleLastLocation {
   recordedAt: string | null; // UTC, ör. "2026-10-28T17:55:49Z"
 }
 
+// API'deki AlarmRules.LowFuelPercent ile aynı: bunun altında hem alarm üretilir hem turuncu gösterilir
 const LOW_FUEL_PERCENT = 15;
 
 export function isSpeeding(v: VehicleLastLocation): boolean {

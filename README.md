@@ -3,7 +3,7 @@
 Araç filosu takip sistemi. Staj öncesi pratik projesi.
 
 Araçlardaki GPS cihazlarını taklit eden bir simülatör, konumları API'ye gönderir. API konumları
-veritabanına kaydeder, hız sınırı aşılınca alarm üretir. Web arayüzü araçları canlı olarak haritada
+veritabanına kaydeder, hız sınırı aşılınca ya da yakıt azalınca alarm üretir. Web arayüzü araçları canlı olarak haritada
 ve listede gösterir.
 
 ```text
@@ -45,6 +45,9 @@ sqlcmd -S localhost -E -C -i 03_reports.sql
 
 > `01_schema.sql` veritabanını silip baştan oluşturur. Çalıştırmadan önce API'yi durdur.
 > Sonra diğer ikisini de tekrar çalıştır (`03_reports.sql` rapor yordamını oluşturur).
+>
+> Veritabanın yakıt hırsızlığı alarmından önce oluşturulduysa ve verilerini silmek istemiyorsan
+> `01_schema.sql` yerine sadece bunu çalıştır: `sqlcmd -S localhost -E -C -i 04_fuel_drain.sql`
 
 ### 2. API
 
@@ -104,6 +107,10 @@ python simulator.py --all --speedup 10
 | `--api-url http://...` | Başka adresteki API'ye gönderir |
 | `--log-level ERROR` | Sadece sorunları yazar (bkz. [Loglar](#loglar)) |
 | `python simulator.py --help` | Bütün seçenekleri listeler |
+
+Araçlar duraklarda ara sıra durur. Duruşların %3'ünde **hırsızlık senaryosu** oynanır: kontak kapanır,
+2-3 adım boyunca depodan her adımda %6-10 yakıt çekilir (terminalde `⛽ DEPODAN YAKIT ÇEKİLİYOR` yazar)
+ve API yakıt kaybı alarmı üretir.
 
 Araçlar `routes.json` dosyasındaki gerçek yollar üzerinde gider. Rotaları değiştirirsen
 `python build_routes.py` ile yeniden oluştur. Bu komut OSRM yol tarifi servisine internetten istek atar.
@@ -171,14 +178,14 @@ cd frontend; ng test --watch=false          # Angular testleri
 API'nin terminalindeki her satır saat, seviye ve kaynakla (logu yazan sınıf) başlar:
 
 ```text
-14:03:12 info: FiloTakip.Api.Services.LocationService[0] Hız alarmı #47: 34 ABC 123 98.5 km/s (sınır 90)
+14:03:12 info: FiloTakip.Api.Services.LocationService[0] Alarm #47 (SpeedLimit): 34 ABC 123 Hız sınırı aşıldı: 98,5 km/s (sınır 90)
 14:03:15 warn: FiloTakip.Api.Services.LocationService[0] Konum reddedildi: 999 numaralı araç yok
 ```
 
 | Seviye | API ne zaman yazar |
 | --- | --- |
 | Debug (normalde gizli) | Her kaydedilen konum |
-| Information | Hız alarmı üretildi, alarm(lar) okundu işaretlendi |
+| Information | Alarm üretildi (hız, düşük yakıt, yakıt kaybı), alarm(lar) okundu işaretlendi |
 | Warning | Olmayan bir araç için konum geldi |
 
 Seviyeler `appsettings.json` → `Logging:LogLevel` içinde, kaynağa göre ayarlanır. EF Core'un SQL sorguları
@@ -255,7 +262,16 @@ kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi
 - **Hız alarmı:** Hız, sınırı 5 km/s'ten fazla aşınca üretilir (tolerans). Araç sınırın üstünde
   kalmaya devam ettikçe yeni alarm üretilmez, sadece sınırın altından üstüne geçtiği an sayılır.
   Aynı araç için 5 dakikada en fazla bir hız alarmı üretilir.
-- **Liste ve harita:** Hız sınırın üstündeyse araç toleranssız olarak kırmızı gösterilir.
+- **Düşük yakıt alarmı:** Yakıt %15'in altına indiği an üretilir. Yakıt düşük kaldıkça (depo dolana
+  kadar) yeni alarm üretilmez. Yakıt sensörü dalgalanabildiği için (ör. %14,9 → %15,2 → %14,8) aynı
+  araç için 10 dakikada en fazla bir düşük yakıt alarmı üretilir. Yakıt bilgisi göndermeyen cihazlarda bu alarm yoktur.
+- **Yakıt kaybı (hırsızlık şüphesi):** Araç dururken (hız 3 km/s'in altında; GPS duran araçta bile 1-2 km/s
+  gösterebilir) yakıt, durduğu andan beri 5 puan ya da daha fazla düşerse üretilir. Duran araçta yakıt
+  neredeyse hiç harcanmaz, sensör dalgalanması da ±1-2 puandır. Araç giderken bakılmaz (yakıt zaten harcanır,
+  depo çalkalanır). Karşılaştırma duruştaki en yüksek yakıtla yapılır: araç dururken depo doldurulup
+  sonra boşaltılırsa da yakalanır. Duruş başına tek alarm üretilir; alarm, düşüş 5 puanı geçtiği an üretildiği
+  için mesajdaki miktar o anki düşüştür (çekme devam ettiyse toplam kayıp daha fazla olabilir).
+- **Liste ve harita:** Hız sınırın üstündeyse araç toleranssız olarak kırmızı, yakıt %15'in altındaysa turuncu gösterilir.
 
 ## Proje yapısı
 
@@ -306,6 +322,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `01_schema.sql` | Veritabanı, tablolar, index'ler, view (veritabanını silip baştan oluşturur) |
 | `02_seed.sql` | Örnek sürücüler ve araçlar |
 | `03_reports.sql` | Rapor saklı yordamı (`usp_DailyFleetReport`) |
+| `04_fuel_drain.sql` | Var olan veritabanına yakıt kaybı alarm türünü ekler (veriyi silmeden) |
 
 ## Tablolar
 

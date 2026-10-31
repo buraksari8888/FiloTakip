@@ -22,4 +22,5 @@ public static class AlarmTypes
     public const string SpeedLimit = "SpeedLimit";
     public const string LowFuel = "LowFuel";
     public const string Idle = "Idle";
+    public const string FuelDrain = "FuelDrain";   // araç dururken yakıt düştü (hırsızlık şüphesi)
 }

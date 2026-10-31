@@ -44,4 +44,53 @@ public static class AlarmRules
 
     public static string SpeedViolationMessage(short speedLimitKmh, decimal speedKmh) =>
         $"Hız sınırı aşıldı: {speedKmh.ToString("0.#", Turkish)} km/s (sınır {speedLimitKmh})";
+
+    // Yakıt bu yüzdenin altına düşünce alarm (frontend'deki LOW_FUEL_PERCENT ile aynı)
+    public const decimal LowFuelPercent = 15;
+
+    // Aynı araca bu süre içinde ikinci düşük yakıt alarmı verilmez. Yakıt sensörü dalgalanır
+    // (depo çalkalanınca %14,9 -> %15,2 -> %14,8 gibi gidip gelebilir), her seferinde alarm yağmasın.
+    public static readonly TimeSpan LowFuelAlarmCooldown = TimeSpan.FromMinutes(10);
+
+    public static bool IsLowFuel(decimal fuelPercent) => fuelPercent < LowFuelPercent;
+
+    // Yeni bir düşük yakıt alarmı üretilmeli mi? Hız alarmıyla aynı mantık: sadece eşiğin altına
+    // indiği an sayılır, yakıt düşük kaldıkça (depo dolana kadar) her konumda yeni alarm üretilmez.
+    public static bool ShouldCreateLowFuelAlarm(
+        decimal? previousFuelPercent,
+        decimal currentFuelPercent,
+        DateTime? lastLowFuelAlarmAt,
+        DateTime now)
+    {
+        if (!IsLowFuel(currentFuelPercent))
+            return false;
+
+        if (previousFuelPercent is decimal previous && IsLowFuel(previous))
+            return false;
+
+        if (lastLowFuelAlarmAt is DateTime last && now - last < LowFuelAlarmCooldown)
+            return false;
+
+        return true;
+    }
+
+    public static string LowFuelMessage(decimal fuelPercent) =>
+        $"Yakıt seviyesi düşük: %{fuelPercent.ToString("0.#", Turkish)}";
+
+    // Araç bu hızın altındaysa duruyor sayılır (GPS, duran araçta bile 1-2 km/s gösterebilir)
+    public const decimal StationarySpeedKmh = 3;
+
+    // Araç dururken yakıt bu kadar puan düşerse hırsızlık şüphesi. Duran araçta yakıt neredeyse hiç
+    // harcanmaz; sensör dalgalanması da ±1-2 puandır, 5 puanlık düşüş bunlarla açıklanamaz.
+    public const decimal FuelDrainPercent = 5;
+
+    public static bool IsStationary(decimal speedKmh) => speedKmh < StationarySpeedKmh;
+
+    // Araç durduğundan beri yakıt eşik kadar düştü mü? fuelWhenStopped: durduğundan beri ölçülen en yüksek yakıt
+    public static bool IsFuelDrain(decimal fuelWhenStopped, decimal currentFuelPercent) =>
+        fuelWhenStopped - currentFuelPercent >= FuelDrainPercent;
+
+    public static string FuelDrainMessage(decimal fuelWhenStopped, decimal currentFuelPercent) =>
+        $"Araç dururken yakıt düştü: %{fuelWhenStopped.ToString("0.#", Turkish)} → " +
+        $"%{currentFuelPercent.ToString("0.#", Turkish)} (hırsızlık şüphesi)";
 }

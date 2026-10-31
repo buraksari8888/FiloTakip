@@ -79,4 +79,9 @@ tr.unread td {
     background: var(--warning);
     color: #fff;
   }
+
+  &.FuelDrain {
+    background: var(--fuel-drain);
+    color: #fff;
+  }
 }
