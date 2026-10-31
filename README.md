@@ -7,9 +7,11 @@ veritabanına kaydeder, hız sınırı aşılınca alarm üretir. Web arayüzü 
 ve listede gösterir.
 
 ```text
- Simülatör (Python)  ──POST konum──▶  API (.NET)  ◀──▶  SQL Server
-                                        ▲
- Web arayüzü (Angular)  ──3 sn'de bir──┘
+ Simülatör (Python)  ──── POST konum ────▶  API (.NET)  ◀──▶  SQL Server
+                                             │     ▲
+                   canlı bildirim (SignalR)  │     │  HTTP: ilk yükleme, okundu işaretleme
+                                             ▼     │
+                                      Web arayüzü (Angular)
 ```
 
 | Klasör | Teknoloji | Açıklama |
@@ -121,7 +123,7 @@ cd frontend; ng test --watch=false          # Angular testleri
 | --- | --- |
 | Veritabanı bağlantısı | `backend/FiloTakip.Api/appsettings.json` → `ConnectionStrings:FiloTakip` |
 | API'ye istek atabilecek siteler (CORS) | `backend/FiloTakip.Api/appsettings.Development.json` → `Cors:AllowedOrigins` |
-| Arayüzün kullandığı API adresi | `frontend/src/environments/environment.development.ts` → `apiUrl` |
+| Arayüzün kullandığı API adresleri | `frontend/src/environments/environment.development.ts` → `apiUrl`, `hubUrl` (canlı bildirim) |
 | Simülatörün kullandığı API adresi | `--api-url` ya da `FILOTAKIP_API_URL` ortam değişkeni (varsayılan `http://localhost:5275`) |
 | API'nin log seviyeleri | `backend/FiloTakip.Api/appsettings.json` → `Logging:LogLevel` |
 | Simülatörün log seviyesi | `--log-level` (varsayılan `INFO`) |
@@ -191,6 +193,22 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `GET /api/alarms/unread-count` | Okunmamış alarm sayısı |
 | `POST /api/alarms/{id}/read` | Alarmı okundu işaretler |
 | `POST /api/alarms/read-all` | Bütün alarmları okundu işaretler |
+| `/hubs/live` | Canlı bildirim kanalı (SignalR, WebSocket), bkz. [Canlı güncelleme](#canlı-güncelleme-signalr) |
+
+## Canlı güncelleme (SignalR)
+
+Arayüz API'ye tekrar tekrar sormaz. Açılışta verileri bir kez HTTP ile çeker, sonra API'nin canlı bildirim
+kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi haber verir:
+
+| Mesaj | Ne zaman | Arayüz ne yapar |
+| --- | --- | --- |
+| `LocationAdded` | Yeni konum kaydedildi | Liste ve haritada sadece o aracı günceller |
+| `AlarmsChanged` | Alarm üretildi ya da okundu işaretlendi | Rozeti ve alarm listesini yeniden çeker |
+
+- Üst menünün sağındaki nokta bağlantıyı gösterir: yeşil **Canlı**, sarı **Bağlanıyor…**, kırmızı **Bağlantı yok**.
+- Bağlantı koparsa arayüz 5 saniyede bir yeniden dener. Bağlantı geri gelince kopukken kaçan değişiklikler için
+  listeleri bir kez baştan çeker.
+- Gelen konum ekrandakinden eskiyse (cihazın bağlantısızken biriktirip sonradan gönderdiği konum) yok sayılır.
 
 ## Alarm kuralları
 
@@ -211,6 +229,7 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `Models/` | Veritabanı tablolarının C# karşılıkları |
 | `Dtos/` | API'nin aldığı ve döndüğü veri biçimleri |
 | `Errors/` | Yakalanmamış hataları loglayıp standart 500 cevabı dönen `GlobalExceptionHandler` |
+| `Hubs/` | SignalR canlı bildirim kanalı (`LiveHub`) ve gönderilebilecek mesajlar (`ILiveClient`) |
 
 Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 
@@ -220,7 +239,8 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | --- | --- |
 | `vehicles/` | Araç modeli, API servisi, canlı veri, araç listesi sayfası |
 | `alarms/` | Alarm modeli, API servisi, okunmamış sayısı, alarm listesi sayfası |
-| `map/` | Leaflet haritası sayfası |
+| `map/` | Leaflet haritası sayfası (ayrı dosyada, sadece bu sayfa açılınca yüklenir) |
+| `core/` | Bütün uygulamanın paylaştığı tekil servisler (API'ye canlı bağlantı: `LiveHub`) |
 | `shared/` | Birden fazla sayfanın kullandığı parçalar (hataya göre mesaj gösteren API hata kutusu) |
 
 ### simulator

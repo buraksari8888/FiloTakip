@@ -1,25 +1,28 @@
 import { inject, Service } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { catchError, EMPTY, merge, Subject, switchMap, timer } from 'rxjs';
+import { merge, retry, startWith, Subject, switchMap, timer } from 'rxjs';
+import { LiveHub, RETRY_MS } from '../core/live-hub';
 import { AlarmApi } from './alarm-api';
 
-const REFRESH_MS = 3000;
-
-// Okunmamış alarm sayısı (üst menüdeki rozet). Her sayfada görünür, 3 saniyede bir güncellenir.
+// Okunmamış alarm sayısı (üst menüdeki rozet). Her sayfada görünür.
 @Service()
 export class LiveAlarms {
   private readonly api = inject(AlarmApi);
+  private readonly hub = inject(LiveHub);
   private readonly refreshNow = new Subject<void>();
 
-  // Hem zamanlayıcı her "tık"ladığında hem de refresh() çağrıldığında sayıyı yeniden çek
+  // Sayı şu durumlarda yeniden çekilir: açılışta, API "alarmlar değişti" deyince, canlı bağlantı yeniden
+  // kurulunca ve refresh() çağrılınca. İstek başarısız olursa 5 saniyede bir yeniden denenir.
   readonly unreadCount = toSignal(
-    merge(timer(0, REFRESH_MS), this.refreshNow).pipe(
-      switchMap(() => this.api.getUnreadCount().pipe(catchError(() => EMPTY))),
+    merge(this.hub.alarmsChanged$, this.hub.reconnected$, this.refreshNow).pipe(
+      startWith(undefined),
+      switchMap(() => this.api.getUnreadCount().pipe(retry({ delay: () => timer(RETRY_MS) }))),
     ),
     { initialValue: 0 },
   );
 
-  // Bir alarm okundu işaretlenince rozeti 3 saniye beklemeden güncellemek için
+  // Bu sekmede bir alarm okundu işaretlenince rozeti hemen güncellemek için
+  // (canlı bağlantı o an kopuk olsa bile çalışsın)
   refresh(): void {
     this.refreshNow.next();
   }

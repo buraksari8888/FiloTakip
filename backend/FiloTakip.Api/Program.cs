@@ -1,5 +1,6 @@
 using FiloTakip.Api.Data;
 using FiloTakip.Api.Errors;
+using FiloTakip.Api.Hubs;
 using FiloTakip.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +30,9 @@ builder.Services.AddCors(options =>
 // ({ "title": ..., "status": ..., "traceId": ... }), istemci hepsini aynı şekilde okuyabilir
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// SignalR: tarayıcılarla açık kalan bir bağlantı (WebSocket) üzerinden anlık mesajlaşma
+builder.Services.AddSignalR();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -61,5 +65,8 @@ app.UseCors();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Canlı bildirim kanalı: tarayıcılar http://localhost:5275/hubs/live adresine bağlanır, bağlantı WebSocket'e geçer
+app.MapHub<LiveHub>("/hubs/live");
 
 app.Run();

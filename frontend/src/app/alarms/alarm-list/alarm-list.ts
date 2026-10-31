@@ -2,13 +2,12 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { catchError, combineLatest, EMPTY, merge, Subject, switchMap, tap, timer } from 'rxjs';
+import { combineLatest, merge, retry, startWith, Subject, switchMap, tap, timer } from 'rxjs';
+import { LiveHub, RETRY_MS } from '../../core/live-hub';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { Alarm, ALARM_TYPE_LABELS } from '../alarm';
 import { AlarmApi } from '../alarm-api';
 import { LiveAlarms } from '../live-alarms';
-
-const REFRESH_MS = 3000;
 
 @Component({
   imports: [ApiErrorAlert, DatePipe],
@@ -19,6 +18,7 @@ const REFRESH_MS = 3000;
 export class AlarmList {
   private readonly api = inject(AlarmApi);
   private readonly liveAlarms = inject(LiveAlarms);
+  private readonly hub = inject(LiveHub);
   private readonly reloadNow = new Subject<void>();
 
   protected readonly unreadOnly = signal(false);
@@ -29,15 +29,22 @@ export class AlarmList {
   protected readonly actionError = signal<{ action: string; error: HttpErrorResponse } | null>(null);
   protected readonly typeLabels = ALARM_TYPE_LABELS;
 
-  // Liste şu durumlarda yeniden çekilir: her 3 saniyede, filtre değişince, okundu işaretleyince
+  // Liste şu durumlarda yeniden çekilir: sayfa açılınca, filtre değişince, okundu işaretleyince,
+  // API "alarmlar değişti" deyince ve canlı bağlantı yeniden kurulunca. Başarısız olursa 5 saniyede bir denenir.
+  private readonly reload = merge(this.hub.alarmsChanged$, this.hub.reconnected$, this.reloadNow).pipe(
+    startWith(undefined),
+  );
+
   protected readonly alarms = toSignal(
-    combineLatest([toObservable(this.unreadOnly), merge(timer(0, REFRESH_MS), this.reloadNow)]).pipe(
+    combineLatest([toObservable(this.unreadOnly), this.reload]).pipe(
       switchMap(([unreadOnly]) =>
         this.api.getAlarms(unreadOnly).pipe(
           tap(() => this.apiError.set(null)),
-          catchError((error: HttpErrorResponse) => {
-            this.apiError.set(error);
-            return EMPTY;
+          retry({
+            delay: (error: HttpErrorResponse) => {
+              this.apiError.set(error);
+              return timer(RETRY_MS);
+            },
           }),
         ),
       ),

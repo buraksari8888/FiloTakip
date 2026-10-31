@@ -1,12 +1,17 @@
 using FiloTakip.Api.Data;
 using FiloTakip.Api.Dtos;
+using FiloTakip.Api.Hubs;
 using FiloTakip.Api.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiloTakip.Api.Services;
 
 // Alarmlarla ilgili her şey: yeni alarm üretme, listeleme, okundu işaretleme
-public class AlarmService(FiloTakipDbContext db, ILogger<AlarmService> logger)
+public class AlarmService(
+    FiloTakipDbContext db,
+    IHubContext<LiveHub, ILiveClient> live,
+    ILogger<AlarmService> logger)
 {
     private const int MaxTake = 200;
 
@@ -82,6 +87,7 @@ public class AlarmService(FiloTakipDbContext db, ILogger<AlarmService> logger)
         alarm.IsRead = true;
         await db.SaveChangesAsync(cancellationToken);   // EF Core sadece değişen sütunu günceller: UPDATE ... SET IsRead = 1
         logger.LogInformation("Alarm #{AlarmId} okundu olarak işaretlendi", alarmId);
+        await live.Clients.All.AlarmsChanged();   // diğer açık sekmelerdeki rozet de güncellensin
         return true;
     }
 
@@ -92,5 +98,7 @@ public class AlarmService(FiloTakipDbContext db, ILogger<AlarmService> logger)
             .Where(a => !a.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.IsRead, true), cancellationToken);
         logger.LogInformation("{Count} alarm okundu olarak işaretlendi", count);
+        if (count > 0)
+            await live.Clients.All.AlarmsChanged();
     }
 }

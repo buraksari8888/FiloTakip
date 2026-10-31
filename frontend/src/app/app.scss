@@ -52,6 +52,32 @@ nav {
   text-align: center;
 }
 
+// Canlı bağlantı göstergesi: renkli nokta + yazı, menünün en sağında
+.live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.75);
+
+  &::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f5c542; // bağlanıyor: sarı
+  }
+
+  &.connected::before {
+    background: #4ade80; // canlı: yeşil
+  }
+
+  &.reconnecting::before {
+    background: #f87171; // bağlantı yok: kırmızı
+  }
+}
+
 main {
   padding: 24px;
   max-width: 1200px;
@@ -59,8 +85,19 @@ main {
 }
 
 @media (max-width: 600px) {
+  // Logo, menü ve canlı göstergesi en dar telefonda (320 px) da tek satıra sığsın
   .topbar {
+    gap: 12px;
     padding: 0 16px;
+  }
+
+  nav a {
+    padding: 6px 8px;
+  }
+
+  // Dar ekranda sadece nokta kalsın (açıklaması fareyle/dokununca görünür)
+  .live-label {
+    display: none;
   }
 
   main {
