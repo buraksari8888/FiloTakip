@@ -93,4 +93,16 @@ public static class AlarmRules
     public static string FuelDrainMessage(decimal fuelWhenStopped, decimal currentFuelPercent) =>
         $"Araç dururken yakıt düştü: %{fuelWhenStopped.ToString("0.#", Turkish)} → " +
         $"%{currentFuelPercent.ToString("0.#", Turkish)} (hırsızlık şüphesi)";
+
+    // Rölanti: motor çalışıyor ama araç gitmiyor. Kırmızı ışıkta ya da kısa beklemede normal,
+    // bu süreden uzun sürerse boşa yakıt yakılıyor demektir.
+    public static readonly TimeSpan IdleAlarmAfter = TimeSpan.FromMinutes(5);
+
+    public static bool IsIdling(bool ignitionOn, decimal speedKmh) => ignitionOn && IsStationary(speedKmh);
+
+    // idleSince: rölantinin başladığı an (o rölantinin ilk konum kaydı), now: son konum kaydının saati
+    public static bool IsLongIdle(DateTime idleSince, DateTime now) => now - idleSince >= IdleAlarmAfter;
+
+    public static string IdleMessage(TimeSpan idleFor) =>
+        $"Uzun rölanti: motor {(int)idleFor.TotalMinutes} dakikadır çalışıyor, araç yerinde bekliyor";
 }

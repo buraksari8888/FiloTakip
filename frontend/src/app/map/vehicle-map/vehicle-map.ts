@@ -257,6 +257,7 @@ export class VehicleMap {
     const speed = formatNumber(v.speedKmh ?? 0, this.locale, '1.0-1');
     const fuel = v.fuelPercent === null ? '—' : '%' + formatNumber(v.fuelPercent, this.locale, '1.0-1');
     const lastSignal = v.recordedAt ? formatDate(v.recordedAt, 'HH:mm:ss', this.locale) : '—';
+    const ignition = v.ignitionOn === null ? '—' : v.ignitionOn ? 'Açık' : 'Kapalı';
 
     return `
       <strong>${escapeHtml(v.plate)}</strong><br>
@@ -264,6 +265,7 @@ export class VehicleMap {
       Sürücü: ${escapeHtml(v.driverName ?? '—')}<br>
       Hız: <span class="${isSpeeding(v) ? 'danger' : ''}">${speed} km/s</span> / ${v.speedLimitKmh}<br>
       Yakıt: <span class="${isLowFuel(v) ? 'warning' : ''}">${fuel}</span><br>
+      Kontak: ${ignition}<br>
       Son sinyal: ${lastSignal}`;
   }
 }

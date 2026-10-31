@@ -158,4 +158,33 @@ public class AlarmRulesTests
     {
         Assert.Equal("Araç dururken yakıt düştü: %62,5 → %44 (hırsızlık şüphesi)", AlarmRules.FuelDrainMessage(62.5m, 44m));
     }
+
+    // ---------- Rölanti (kontak açık, araç duruyor, 5 dakika) ----------
+
+    [Theory]
+    [InlineData(true, 0, true)]
+    [InlineData(true, 1.5, true)]    // GPS dalgalanması: yine duruyor sayılır
+    [InlineData(true, 30, false)]    // gidiyor
+    [InlineData(false, 0, false)]    // kontak kapalı: park halinde, yakıt yanmıyor
+    public void IsIdling_NeedsIgnitionOnAndStationary(bool ignitionOn, double speedKmh, bool expected)
+    {
+        Assert.Equal(expected, AlarmRules.IsIdling(ignitionOn, (decimal)speedKmh));
+    }
+
+    [Theory]
+    [InlineData(60, false)]     // trafik ışığı
+    [InlineData(299, false)]
+    [InlineData(300, true)]     // tam 5 dakika
+    [InlineData(1800, true)]
+    public void IsLongIdle_After5Minutes(int seconds, bool expected)
+    {
+        Assert.Equal(expected, AlarmRules.IsLongIdle(Now.AddSeconds(-seconds), Now));
+    }
+
+    [Fact]
+    public void IdleMessage_ShowsWholeMinutes()
+    {
+        Assert.Equal("Uzun rölanti: motor 5 dakikadır çalışıyor, araç yerinde bekliyor",
+            AlarmRules.IdleMessage(TimeSpan.FromSeconds(330)));
+    }
 }

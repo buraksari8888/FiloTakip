@@ -29,7 +29,7 @@ public class AlarmService(
         a.Location == null ? null : a.Location.Latitude,
         a.Location == null ? null : a.Location.Longitude);
 
-    // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt, yakıt hırsızlığı). KAYDETMEZ: kaydetme işini çağıran yapar,
+    // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt, yakıt hırsızlığı, rölanti). KAYDETMEZ: kaydetme işini çağıran yapar,
     // böylece konum ve alarmlar tek SaveChanges ile birlikte kaydedilir (ya hepsi ya hiçbiri).
     // previous: aracın bir önceki konumu (ilk konumuysa null). Eklenen alarmları döner, çoğu zaman boş liste.
     public async Task<List<Alarm>> AddAlarmsIfNeededAsync(
@@ -70,7 +70,41 @@ public class AlarmService(
             added.Add(AddAlarm(location, AlarmTypes.FuelDrain, AlarmRules.FuelDrainMessage(fuelWhenStopped, currentFuel)));
         }
 
+        // Rölanti: kontak açık ve araç duruyorsa, ne zamandan beri böyle olduğuna bakılır
+        if (AlarmRules.IsIdling(location.IgnitionOn, location.SpeedKmh)
+            && await GetIdleSinceIfLongAsync(location, cancellationToken) is DateTime idleSince)
+        {
+            added.Add(AddAlarm(location, AlarmTypes.Idle, AlarmRules.IdleMessage(location.RecordedAt - idleSince)));
+        }
+
         return added;
+    }
+
+    // Araç 5 dakikadan uzun süredir rölantideyse rölantinin başladığı anı döner, yoksa null.
+    // Bu rölantide zaten alarm verildiyse de null: rölanti başına tek alarm.
+    // Süre konum kayıtlarının saatiyle (cihazın ölçüm anı) hesaplanır, sunucunun saatiyle değil.
+    private async Task<DateTime?> GetIdleSinceIfLongAsync(LocationRecord location, CancellationToken cancellationToken)
+    {
+        // Rölanti en son ne zaman kesildi? (araç hareket etti ya da kontak kapandı)
+        var lastNotIdleAt = await db.LocationRecords
+            .Where(l => l.VehicleId == location.VehicleId
+                        && (l.SpeedKmh >= AlarmRules.StationarySpeedKmh || !l.IgnitionOn))
+            .MaxAsync(l => (DateTime?)l.RecordedAt, cancellationToken);
+
+        // Rölantinin ilk kaydı: kesildiği andan sonraki ilk kayıt (hiç kesilmediyse aracın ilk kaydı).
+        // Bu kayıt henüz kaydedilmediği için sorguda yok; rölantinin ilk kaydıysa sonuç null olur (süre 0).
+        var idleSince = await db.LocationRecords
+            .Where(l => l.VehicleId == location.VehicleId && (lastNotIdleAt == null || l.RecordedAt > lastNotIdleAt))
+            .MinAsync(l => (DateTime?)l.RecordedAt, cancellationToken);
+        if (idleSince is not DateTime since || !AlarmRules.IsLongIdle(since, location.RecordedAt))
+            return null;
+
+        var alreadyAlarmed = await db.Alarms.AnyAsync(
+            a => a.VehicleId == location.VehicleId
+                 && a.AlarmType == AlarmTypes.Idle
+                 && (lastNotIdleAt == null || a.Location!.RecordedAt > lastNotIdleAt),
+            cancellationToken);
+        return alreadyAlarmed ? null : since;
     }
 
     // Araç durduğundan beri yakıt eşikten fazla düştüyse durduğu andaki yakıtı döner, yoksa null.
