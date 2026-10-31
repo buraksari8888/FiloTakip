@@ -14,8 +14,12 @@
   </div>
 </div>
 
-@if (apiError()) {
-  <app-api-error-alert />
+@if (apiError(); as error) {
+  <app-api-error-alert [error]="error" />
+}
+
+@if (actionError(); as failed) {
+  <app-api-error-alert [error]="failed.error" [action]="failed.action" />
 }
 
 @if (alarms(); as list) {
