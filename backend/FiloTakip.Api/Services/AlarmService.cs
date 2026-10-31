@@ -29,34 +29,56 @@ public class AlarmService(
         a.Location == null ? null : a.Location.Latitude,
         a.Location == null ? null : a.Location.Longitude);
 
-    // Yeni gelen konum için gerekiyorsa hız alarmı ekler. KAYDETMEZ: kaydetme işini çağıran yapar,
-    // böylece konum ve alarm tek SaveChanges ile birlikte kaydedilir (ya ikisi birden ya hiçbiri).
-    // Eklediği alarmı döner, alarm gerekmediyse null.
-    public async Task<Alarm?> AddSpeedAlarmIfNeededAsync(
+    // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt). KAYDETMEZ: kaydetme işini çağıran yapar,
+    // böylece konum ve alarmlar tek SaveChanges ile birlikte kaydedilir (ya hepsi ya hiçbiri).
+    // previous: aracın bir önceki konumu (ilk konumuysa null). Eklenen alarmları döner, çoğu zaman boş liste.
+    public async Task<List<Alarm>> AddAlarmsIfNeededAsync(
         LocationRecord location,
         short speedLimitKmh,
-        decimal? previousSpeedKmh,
+        LocationRecord? previous,
         CancellationToken cancellationToken)
     {
-        // Araç hızlı değilse veritabanına hiç gitme (konumların çoğu bu durumda)
-        if (!AlarmRules.IsSpeeding(speedLimitKmh, location.SpeedKmh))
-            return null;
+        var added = new List<Alarm>();
+        var now = DateTime.UtcNow;
 
-        // Bu aracın son hız alarmı ne zamandı? (bekleme süresi kontrolü için)
-        var lastSpeedAlarmAt = await db.Alarms
-            .Where(a => a.VehicleId == location.VehicleId && a.AlarmType == AlarmTypes.SpeedLimit)
+        // İlk kontrol veritabanına gitmeden yapılır: araç hızlı değilse son alarmı sorgulamaya gerek yok
+        // (konumların çoğu bu durumda)
+        if (AlarmRules.IsSpeeding(speedLimitKmh, location.SpeedKmh)
+            && AlarmRules.ShouldCreateSpeedAlarm(
+                speedLimitKmh, previous?.SpeedKmh, location.SpeedKmh,
+                await GetLastAlarmAtAsync(location.VehicleId, AlarmTypes.SpeedLimit, cancellationToken), now))
+        {
+            added.Add(AddAlarm(location, AlarmTypes.SpeedLimit,
+                AlarmRules.SpeedViolationMessage(speedLimitKmh, location.SpeedKmh)));
+        }
+
+        // Yakıt bilgisi olmayan cihazlarda (FuelPercent null) yakıt alarmı yok
+        if (location.FuelPercent is decimal fuel
+            && AlarmRules.IsLowFuel(fuel)
+            && AlarmRules.ShouldCreateLowFuelAlarm(
+                previous?.FuelPercent, fuel,
+                await GetLastAlarmAtAsync(location.VehicleId, AlarmTypes.LowFuel, cancellationToken), now))
+        {
+            added.Add(AddAlarm(location, AlarmTypes.LowFuel, AlarmRules.LowFuelMessage(fuel)));
+        }
+
+        return added;
+    }
+
+    // Bu aracın bu türdeki son alarmı ne zamandı? (bekleme süresi kontrolü için; hiç yoksa null)
+    private Task<DateTime?> GetLastAlarmAtAsync(int vehicleId, string alarmType, CancellationToken cancellationToken) =>
+        db.Alarms
+            .Where(a => a.VehicleId == vehicleId && a.AlarmType == alarmType)
             .MaxAsync(a => (DateTime?)a.CreatedAt, cancellationToken);
 
-        if (!AlarmRules.ShouldCreateSpeedAlarm(
-                speedLimitKmh, previousSpeedKmh, location.SpeedKmh, lastSpeedAlarmAt, DateTime.UtcNow))
-            return null;
-
+    private Alarm AddAlarm(LocationRecord location, string alarmType, string message)
+    {
         var alarm = new Alarm
         {
             VehicleId = location.VehicleId,
             Location = location,        // LocationId'yi EF Core, konum kaydedildikten sonra kendisi doldurur
-            AlarmType = AlarmTypes.SpeedLimit,
-            Message = AlarmRules.SpeedViolationMessage(speedLimitKmh, location.SpeedKmh)
+            AlarmType = alarmType,
+            Message = message
         };
         db.Alarms.Add(alarm);
         return alarm;

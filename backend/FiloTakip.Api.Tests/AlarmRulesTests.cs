@@ -87,4 +87,46 @@ public class AlarmRulesTests
     {
         Assert.Equal(expected, AlarmRules.SpeedViolationMessage(Limit, (decimal)speedKmh));
     }
+
+    // ---------- Düşük yakıt (eşik %15) ----------
+
+    [Theory]
+    [InlineData(15.1, 14.9, true)]    // eşiğin altına yeni indi
+    [InlineData(15, 14.9, true)]      // tam %15 düşük sayılmaz, yani önceki konumda yakıt yeterliydi
+    [InlineData(14.9, 14.5, false)]   // zaten düşüktü: depo dolana kadar her konumda alarm olmasın
+    [InlineData(20, 15, false)]       // tam eşikte: henüz düşük değil
+    [InlineData(5, 100, false)]       // depo doldu
+    public void ShouldCreateLowFuelAlarm_OnlyWhenFallingBelowThreshold(double previous, double current, bool expected)
+    {
+        var result = AlarmRules.ShouldCreateLowFuelAlarm((decimal)previous, (decimal)current, lastLowFuelAlarmAt: null, Now);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ShouldCreateLowFuelAlarm_FirstLocationOfVehicle_ReturnsTrue()
+    {
+        var result = AlarmRules.ShouldCreateLowFuelAlarm(previousFuelPercent: null, 8, lastLowFuelAlarmAt: null, Now);
+
+        Assert.True(result);
+    }
+
+    [Theory]
+    [InlineData(3, false)]    // sensör dalgalandı (%14,9 -> %15,2 -> %14,8): 3 dakika önce zaten alarm verildi
+    [InlineData(10, true)]    // tam 10 dakika: süre doldu
+    public void ShouldCreateLowFuelAlarm_RespectsCooldown(int minutesSinceLastAlarm, bool expected)
+    {
+        var result = AlarmRules.ShouldCreateLowFuelAlarm(
+            15.2m, 14.8m, lastLowFuelAlarmAt: Now.AddMinutes(-minutesSinceLastAlarm), Now);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData(8.4, "Yakıt seviyesi düşük: %8,4")]
+    [InlineData(14, "Yakıt seviyesi düşük: %14")]
+    public void LowFuelMessage_IsTurkishFormatted(double fuelPercent, string expected)
+    {
+        Assert.Equal(expected, AlarmRules.LowFuelMessage((decimal)fuelPercent));
+    }
 }
