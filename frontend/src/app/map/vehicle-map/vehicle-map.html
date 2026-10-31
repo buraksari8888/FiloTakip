@@ -4,4 +4,8 @@
   <app-api-error-alert [error]="error" />
 }
 
+@if (alarmError(); as error) {
+  <app-api-error-alert [error]="error" action="Alarm haritada gösterilemedi" />
+}
+
 <div #map class="map"></div>

@@ -14,6 +14,10 @@ export class AlarmApi {
     return this.http.get<Alarm[]>(this.baseUrl, { params: { unreadOnly } });
   }
 
+  getAlarm(alarmId: number): Observable<Alarm> {
+    return this.http.get<Alarm>(`${this.baseUrl}/${alarmId}`);
+  }
+
   getUnreadCount(): Observable<number> {
     return this.http.get<number>(`${this.baseUrl}/unread-count`);
   }

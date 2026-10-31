@@ -66,6 +66,14 @@ ng serve
 
 Arayüz: <http://localhost:4200>
 
+| Sayfa | Adres | İçerik |
+| --- | --- | --- |
+| Harita | `/harita` | Bütün araçlar canlı olarak haritada |
+| | `/harita?arac=3` | O araca yakınlaşır, bilgi balonunu açar |
+| | `/harita?alarm=46` | Alarmın olduğu yeri kırmızı halkayla gösterir (aracın şu anki yeri değil) |
+| Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster" |
+| Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme; her satırda "Haritada göster" |
+
 ### 4. Simülatör
 
 İlk seferde sanal ortamı kur:
@@ -220,6 +228,7 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `POST /api/locations` | Yeni konum kaydı (simülatör bunu kullanır), gerekirse alarm üretir |
 | `GET /api/locations/{id}` | Tek konum kaydı |
 | `GET /api/alarms?unreadOnly=true&take=50` | En yeni alarmlar |
+| `GET /api/alarms/{id}` | Tek alarm (konumuyla birlikte) |
 | `GET /api/alarms/unread-count` | Okunmamış alarm sayısı |
 | `POST /api/alarms/{id}/read` | Alarmı okundu işaretler |
 | `POST /api/alarms/read-all` | Bütün alarmları okundu işaretler |

@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { combineLatest, merge, retry, startWith, Subject, switchMap, tap, timer } from 'rxjs';
 import { LiveHub, RETRY_MS } from '../../core/live-hub';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
@@ -10,7 +11,7 @@ import { AlarmApi } from '../alarm-api';
 import { LiveAlarms } from '../live-alarms';
 
 @Component({
-  imports: [ApiErrorAlert, DatePipe],
+  imports: [ApiErrorAlert, DatePipe, RouterLink],
   selector: 'app-alarm-list',
   styleUrl: './alarm-list.scss',
   templateUrl: './alarm-list.html',

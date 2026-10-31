@@ -1,4 +1,5 @@
 import { formatDate, formatNumber } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   afterNextRender,
   Component,
@@ -6,16 +7,28 @@ import {
   effect,
   ElementRef,
   inject,
+  input,
   LOCALE_ID,
   signal,
   viewChild,
 } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import * as L from 'leaflet';
+import { catchError, of, switchMap } from 'rxjs';
+import { Alarm } from '../../alarms/alarm';
+import { AlarmApi } from '../../alarms/alarm-api';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
 import { isLowFuel, isSpeeding, VehicleLastLocation } from '../../vehicles/vehicle-last-location';
 
 const ISTANBUL: L.LatLngTuple = [41.03, 28.98];
+const FOCUS_ZOOM = 16; // tek bir araca ya da alarma yakınlaşırken (sokak düzeyi)
+
+// Adresteki ?arac=3 / ?alarm=46 değerini sayıya çevirir; yoksa ya da geçersizse (ör. ?arac=abc) yok sayar
+function toId(value: string | undefined): number | undefined {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : undefined;
+}
 
 @Component({
   imports: [ApiErrorAlert],
@@ -25,14 +38,43 @@ const ISTANBUL: L.LatLngTuple = [41.03, 28.98];
 })
 export class VehicleMap {
   private readonly live = inject(LiveVehicles);
+  private readonly alarmApi = inject(AlarmApi);
   private readonly locale = inject(LOCALE_ID);
   private readonly mapElement = viewChild.required<ElementRef<HTMLDivElement>>('map');
 
+  // Listelerdeki "Haritada göster" bağlantılarından gelen adres parametreleri: /harita?arac=3 ya da
+  // /harita?alarm=46. Router bunları doğrudan bu input'lara verir (app.config.ts: withComponentInputBinding).
+  readonly vehicleId = input(undefined, { alias: 'arac', transform: toId });
+  readonly alarmId = input(undefined, { alias: 'alarm', transform: toId });
+
   protected readonly apiError = this.live.apiError;
+  protected readonly alarmError = signal<HttpErrorResponse | null>(null);
+
+  // ?alarm=46 ise o alarm API'den çekilir (konumu, plakası, mesajı)
+  private readonly alarm = toSignal(
+    toObservable(this.alarmId).pipe(
+      switchMap((alarmId) => {
+        this.alarmError.set(null);
+        if (alarmId === undefined) {
+          return of(null);
+        }
+        return this.alarmApi.getAlarm(alarmId).pipe(
+          catchError((error: HttpErrorResponse) => {
+            this.alarmError.set(error);
+            return of(null);
+          }),
+        );
+      }),
+    ),
+    { initialValue: null },
+  );
 
   private readonly map = signal<L.Map | null>(null);
   private readonly markers = new Map<number, L.Marker>(); // aracın numarası -> haritadaki işareti
-  private zoomedToVehicles = false;
+  private alarmMarker: L.CircleMarker | null = null;
+  // En son neye yakınlaştırıldı ("hepsi", "arac-3", "alarm-46"). Aynı hedefe bir kez yakınlaştırılır:
+  // her canlı güncellemede tekrar yakınlaştırsak kullanıcının kaydırdığı harita geri zıplardı.
+  private zoomedTo: string | null = null;
 
   constructor() {
     // Leaflet gerçek bir HTML elemanına ihtiyaç duyar, bu yüzden haritayı sayfa çizildikten sonra oluşturuyoruz
@@ -51,6 +93,15 @@ export class VehicleMap {
       const vehicles = this.live.vehicles();
       if (map && vehicles) {
         this.updateMarkers(map, vehicles);
+        this.zoomToVehicles(map);
+      }
+    });
+
+    // ?alarm= ile gelindiyse alarm API'den gelince haritada göster
+    effect(() => {
+      const map = this.map();
+      if (map) {
+        this.showAlarm(map, this.alarm());
       }
     });
 
@@ -86,13 +137,54 @@ export class VehicleMap {
         this.markers.delete(vehicleId);
       }
     }
+  }
 
-    // İlk seferde haritayı bütün araçlar görünecek şekilde yakınlaştır
-    if (!this.zoomedToVehicles && this.markers.size > 0) {
+  // ?arac=3 ise o araca yakınlaşıp bilgi balonunu açar, yoksa bütün araçları sığdırır.
+  // ?alarm= varsa hiçbir şey yapmaz: harita alarmın yerine yakınlaşır (showAlarm). Alarm alınamadıysa hepsini gösterir.
+  private zoomToVehicles(map: L.Map): void {
+    if (this.alarmId() !== undefined && !this.alarmError()) {
+      return;
+    }
+    const vehicleId = this.vehicleId();
+    const marker = vehicleId === undefined ? undefined : this.markers.get(vehicleId);
+    const target = marker ? `arac-${vehicleId}` : 'hepsi';
+    if (this.zoomedTo === target || this.markers.size === 0) {
+      return;
+    }
+
+    if (marker) {
+      map.setView(marker.getLatLng(), FOCUS_ZOOM);
+      marker.openPopup();
+    } else {
+      map.closePopup(); // tek bir araca bakıyorduk, genel görünüme dönerken onun balonu açık kalmasın
       const bounds = L.featureGroup([...this.markers.values()]).getBounds();
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-      this.zoomedToVehicles = true;
     }
+    this.zoomedTo = target;
+  }
+
+  // Alarmın olduğu yere kırmızı bir halka koyar ve oraya yakınlaşır (aracın şu anki yeri değil, alarm anındaki yeri)
+  private showAlarm(map: L.Map, alarm: Alarm | null): void {
+    this.alarmMarker?.remove();
+    this.alarmMarker = null;
+    if (!alarm || alarm.latitude === null || alarm.longitude === null) {
+      return;
+    }
+
+    const position: L.LatLngTuple = [alarm.latitude, alarm.longitude];
+    this.alarmMarker = L.circleMarker(position, { radius: 12, color: '#c62828', weight: 3, fillOpacity: 0.15 })
+      .bindPopup(this.alarmPopupHtml(alarm))
+      .addTo(map);
+    map.setView(position, FOCUS_ZOOM);
+    this.alarmMarker.openPopup();
+    this.zoomedTo = `alarm-${alarm.alarmId}`;
+  }
+
+  private alarmPopupHtml(alarm: Alarm): string {
+    return `
+      <strong>${escapeHtml(alarm.plate)}</strong><br>
+      ${escapeHtml(alarm.message)}<br>
+      ${formatDate(alarm.createdAt, 'dd.MM.yyyy HH:mm:ss', this.locale)}`;
   }
 
   private popupHtml(v: VehicleLastLocation): string {

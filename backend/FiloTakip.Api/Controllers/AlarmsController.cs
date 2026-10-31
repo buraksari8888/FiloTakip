@@ -13,6 +13,19 @@ public class AlarmsController(AlarmService alarms) : ControllerBase
     public Task<List<AlarmDto>> GetAll(bool unreadOnly = false, int take = 50, CancellationToken cancellationToken = default) =>
         alarms.GetAllAsync(unreadOnly, take, cancellationToken);
 
+    // GET /api/alarms/5 -> tek alarm, yoksa 404 (haritada "alarmın olduğu yer" için)
+    [HttpGet("{id:long}")]
+    [ProducesResponseType<AlarmDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AlarmDto>> GetById(long id, CancellationToken cancellationToken)
+    {
+        var alarm = await alarms.GetByIdAsync(id, cancellationToken);
+        if (alarm is null)
+            return NotFound();
+
+        return alarm;
+    }
+
     // GET /api/alarms/unread-count -> okunmamış alarm sayısı (üst menüdeki rozet için)
     [HttpGet("unread-count")]
     public Task<int> GetUnreadCount(CancellationToken cancellationToken) =>
