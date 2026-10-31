@@ -49,12 +49,36 @@ body {
   }
 }
 
-// Sayfaların üstündeki hata kutusu (liste ve harita)
-.alert {
-  padding: 10px 14px;
+// Ortak tablo görünümü (araç ve alarm listeleri). Kullanım: <div class="table-wrap"><table>...</table></div>
+.table-wrap {
+  overflow-x: auto; // dar ekranda tablo kendi içinde kaysın
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--danger-bg);
-  color: var(--danger);
+  background: var(--surface);
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+  }
+
+  th,
+  td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
 }
 
 // Haritadaki araç işareti. Leaflet bu HTML'i kendisi oluşturduğu için stili burada (genel dosyada) olmalı.

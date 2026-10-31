@@ -1,9 +1,7 @@
 <h1>Araçlar</h1>
 
 @if (apiError()) {
-  <p class="alert">
-    API'ye ulaşılamıyor. API çalışıyor mu? (<code>backend/FiloTakip.Api</code> klasöründe <code>dotnet run</code>)
-  </p>
+  <app-api-error-alert />
 }
 
 @if (vehicles(); as list) {
