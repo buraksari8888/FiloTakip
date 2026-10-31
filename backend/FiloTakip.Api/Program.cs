@@ -37,8 +37,12 @@ if (app.Environment.IsDevelopment())
     // Tarayıcıdan API'yi test etmek için: http://localhost:5275/swagger
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "FiloTakip API"));
 }
-
-app.UseHttpsRedirection();
+else
+{
+    // Yayında http isteklerini https'e yönlendir. Geliştirirken sadece http://localhost:5275 kullanıyoruz,
+    // orada yönlendirecek https adresi olmadığı için her başlangıçta boş yere uyarı yazıyordu.
+    app.UseHttpsRedirection();
+}
 
 app.UseCors();
 

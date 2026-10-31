@@ -6,19 +6,23 @@ using Microsoft.EntityFrameworkCore;
 namespace FiloTakip.Api.Services;
 
 // Araçlardan gelen konumları kaydeder ve okur
-public class LocationService(FiloTakipDbContext db, AlarmService alarms)
+public class LocationService(FiloTakipDbContext db, AlarmService alarms, ILogger<LocationService> logger)
 {
     // Konumu kaydeder, gerekiyorsa alarm üretir. Araç bulunamazsa null döner.
     public async Task<LocationDto?> CreateAsync(CreateLocationDto dto, CancellationToken cancellationToken)
     {
         // Olmayan bir araca konum yazılmasın (veritabanındaki FOREIGN KEY de engeller,
         // ama burada kontrol edersek kullanıcıya anlaşılır bir hata verebiliriz)
-        var speedLimitKmh = await db.Vehicles
+        var vehicle = await db.Vehicles
             .Where(v => v.VehicleId == dto.VehicleId)
-            .Select(v => (short?)v.SpeedLimitKmh)
+            .Select(v => new { v.Plate, v.SpeedLimitKmh })
             .FirstOrDefaultAsync(cancellationToken);
-        if (speedLimitKmh is null)
+        if (vehicle is null)
+        {
+            // Uyarı: genelde cihaz yanlış ayarlanmış ya da araç sistemden silinmiş demektir
+            logger.LogWarning("Konum reddedildi: {VehicleId} numaralı araç yok", dto.VehicleId);
             return null;
+        }
 
         // Aracın bir önceki hızı: yeni bir hız ihlali mi başladı, yoksa zaten süren bir ihlal mi?
         // (IX_LocationRecords_Vehicle_Time index'i tam bu sorgu için var, milyonlarca kayıtta da hızlı çalışır)
@@ -41,10 +45,19 @@ public class LocationService(FiloTakipDbContext db, AlarmService alarms)
         };
 
         db.LocationRecords.Add(record);   // henüz veritabanına gitmedi, sadece "eklenecek" diye işaretlendi
-        await alarms.AddSpeedAlarmIfNeededAsync(record, speedLimitKmh.Value, previousSpeedKmh, cancellationToken);
+        var alarm = await alarms.AddSpeedAlarmIfNeededAsync(record, vehicle.SpeedLimitKmh, previousSpeedKmh, cancellationToken);
 
         // Konum ve (varsa) alarm tek seferde kaydedilir: ya ikisi birden ya hiçbiri
         await db.SaveChangesAsync(cancellationToken);
+
+        // Loglar kaydettikten SONRA: kaydetme hata verirse "alarm üretildi" diye yanlış bilgi yazmasınlar
+        if (alarm is not null)
+            logger.LogInformation("Hız alarmı #{AlarmId}: {Plate} {SpeedKmh} km/s (sınır {SpeedLimitKmh})",
+                alarm.AlarmId, vehicle.Plate, record.SpeedKmh, vehicle.SpeedLimitKmh);
+
+        // Her konumda yazılır, bu yüzden Debug: normalde gizli, gerekince appsettings'ten açılır
+        logger.LogDebug("Konum #{LocationId} kaydedildi: {Plate} {SpeedKmh} km/s",
+            record.LocationId, vehicle.Plate, record.SpeedKmh);
 
         return ToDto(record);
     }

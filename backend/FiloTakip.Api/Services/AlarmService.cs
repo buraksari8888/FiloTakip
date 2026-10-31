@@ -6,13 +6,14 @@ using Microsoft.EntityFrameworkCore;
 namespace FiloTakip.Api.Services;
 
 // Alarmlarla ilgili her şey: yeni alarm üretme, listeleme, okundu işaretleme
-public class AlarmService(FiloTakipDbContext db)
+public class AlarmService(FiloTakipDbContext db, ILogger<AlarmService> logger)
 {
     private const int MaxTake = 200;
 
     // Yeni gelen konum için gerekiyorsa hız alarmı ekler. KAYDETMEZ: kaydetme işini çağıran yapar,
     // böylece konum ve alarm tek SaveChanges ile birlikte kaydedilir (ya ikisi birden ya hiçbiri).
-    public async Task AddSpeedAlarmIfNeededAsync(
+    // Eklediği alarmı döner, alarm gerekmediyse null.
+    public async Task<Alarm?> AddSpeedAlarmIfNeededAsync(
         LocationRecord location,
         short speedLimitKmh,
         decimal? previousSpeedKmh,
@@ -20,7 +21,7 @@ public class AlarmService(FiloTakipDbContext db)
     {
         // Araç hızlı değilse veritabanına hiç gitme (konumların çoğu bu durumda)
         if (!AlarmRules.IsSpeeding(speedLimitKmh, location.SpeedKmh))
-            return;
+            return null;
 
         // Bu aracın son hız alarmı ne zamandı? (bekleme süresi kontrolü için)
         var lastSpeedAlarmAt = await db.Alarms
@@ -29,15 +30,17 @@ public class AlarmService(FiloTakipDbContext db)
 
         if (!AlarmRules.ShouldCreateSpeedAlarm(
                 speedLimitKmh, previousSpeedKmh, location.SpeedKmh, lastSpeedAlarmAt, DateTime.UtcNow))
-            return;
+            return null;
 
-        db.Alarms.Add(new Alarm
+        var alarm = new Alarm
         {
             VehicleId = location.VehicleId,
             Location = location,        // LocationId'yi EF Core, konum kaydedildikten sonra kendisi doldurur
             AlarmType = AlarmTypes.SpeedLimit,
             Message = AlarmRules.SpeedViolationMessage(speedLimitKmh, location.SpeedKmh)
-        });
+        };
+        db.Alarms.Add(alarm);
+        return alarm;
     }
 
     // En yeni alarmlar (en fazla 200)
@@ -78,12 +81,16 @@ public class AlarmService(FiloTakipDbContext db)
 
         alarm.IsRead = true;
         await db.SaveChangesAsync(cancellationToken);   // EF Core sadece değişen sütunu günceller: UPDATE ... SET IsRead = 1
+        logger.LogInformation("Alarm #{AlarmId} okundu olarak işaretlendi", alarmId);
         return true;
     }
 
-    public Task MarkAllAsReadAsync(CancellationToken cancellationToken) =>
-        // Kayıtları tek tek belleğe almadan, tek bir UPDATE sorgusuyla
-        db.Alarms
+    public async Task MarkAllAsReadAsync(CancellationToken cancellationToken)
+    {
+        // Kayıtları tek tek belleğe almadan, tek bir UPDATE sorgusuyla. Kaç satırın değiştiğini döner.
+        var count = await db.Alarms
             .Where(a => !a.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.IsRead, true), cancellationToken);
+        logger.LogInformation("{Count} alarm okundu olarak işaretlendi", count);
+    }
 }

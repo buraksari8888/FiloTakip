@@ -7,6 +7,7 @@ Kullanım:
     python simulator.py --all --interval 1 --steps 10
     python simulator.py --all --speedup 10   # zamanı 10 kat hızlandır (haritada hareket belirgin olsun)
     python simulator.py --all --api-url http://localhost:5299   # başka adresteki API'ye gönder
+    python simulator.py --all --log-level ERROR   # sadece hataları yaz
 
 Dosyalar:
     simulator.py   komut satırı ve ana döngü (bu dosya)
@@ -16,7 +17,9 @@ Dosyalar:
 
 import argparse
 import json
+import logging
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -24,6 +27,8 @@ import requests
 
 from api_client import FiloTakipApi, LocationRejectedError
 from vehicle import VehicleSimulator
+
+log = logging.getLogger(__name__)
 
 # API adresi: --api-url verilirse o, yoksa FILOTAKIP_API_URL ortam değişkeni, o da yoksa bilgisayardaki API
 DEFAULT_API_URL = os.environ.get("FILOTAKIP_API_URL", "http://localhost:5275")
@@ -38,6 +43,7 @@ def load_routes():
 
 
 def print_vehicles(api):
+    # Burada print kalıyor: bu liste programın kullanıcıya verdiği cevap (çıktısı), çalışma günlüğü değil
     vehicles = api.get_vehicles()
     print(f"{len(vehicles)} araç bulundu:")
     for v in vehicles:
@@ -50,12 +56,14 @@ def print_vehicles(api):
 
 def run(api, sims, interval, steps, speedup):
     """Her turda bütün araçları bir adım ilerletir ve konumlarını gönderir."""
-    print(f"API: {api.base_url}")
+    # f-string yerine %s yer tutucuları: değerler ayrı verilir, satır ancak yazılacaksa birleştirilir
+    # (.NET'teki {Plate} şablonlarıyla aynı fikir)
+    log.info("API: %s", api.base_url)
     if speedup != 1:
-        print(f"Zaman {speedup:g} kat hızlı: her {interval:g} saniyede {interval * speedup:g} saniyelik yol gidilir")
+        log.info("Zaman %g kat hızlı: her %g saniyede %g saniyelik yol gidilir", speedup, interval, interval * speedup)
     for sim in sims:
-        print(f"{sim.plate:<12} yola çıktı (hız sınırı {sim.speed_limit} km/s)")
-    print("Durdurmak için Ctrl+C\n")
+        log.info("%-12s yola çıktı (hız sınırı %s km/s)", sim.plate, sim.speed_limit)
+    log.info("Durdurmak için Ctrl+C")
 
     step = 0
     while steps is None or step < steps:
@@ -65,16 +73,18 @@ def run(api, sims, interval, steps, speedup):
             try:
                 location_id = api.send_location(payload)
             except LocationRejectedError as error:
-                print(f"  {sim.plate:<12} API konumu reddetti: {error}")
+                log.error("%-12s API konumu reddetti: %s", sim.plate, error)
                 continue
             except requests.RequestException as error:
                 # Bir konum gönderilemedi diye simülatör durmasın (gerçek cihazlar da denemeye devam eder)
-                print(f"  {sim.plate:<12} konum gönderilemedi: {error.__class__.__name__}")
+                log.error("%-12s konum gönderilemedi: %s", sim.plate, error.__class__.__name__)
                 continue
 
+            # Hız ihlali simülatör için bir hata değil, beklenen bir olay: seviyesi INFO, sadece işaretlenir
             warning = "  ⚠️ HIZ SINIRI AŞILDI" if payload["speedKmh"] > sim.speed_limit else ""
-            print(f"  {sim.plate:<12} #{location_id}  {payload['latitude']:.5f}, {payload['longitude']:.5f}  "
-                  f"{payload['speedKmh']:>5.1f} km/s  yakıt %{payload['fuelPercent']:.1f}{warning}")
+            log.info("%-12s #%s  %.5f, %.5f  %5.1f km/s  yakıt %%%.1f%s",   # %% = düz yüzde işareti
+                     sim.plate, location_id, payload["latitude"], payload["longitude"],
+                     payload["speedKmh"], payload["fuelPercent"], warning)
 
         step += 1
         time.sleep(interval)
@@ -90,7 +100,15 @@ def main():
     parser.add_argument("--speedup", type=float, default=1, help="zaman kaç kat hızlı aksın (varsayılan 1 = gerçek zaman)")
     parser.add_argument("--api-url", default=DEFAULT_API_URL,
                         help="API'nin adresi (varsayılan: %(default)s, FILOTAKIP_API_URL ortam değişkeniyle de verilebilir)")
+    parser.add_argument("--log-level", default="INFO", type=str.upper, choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                        help="bu seviye ve üstündeki loglar yazılır (varsayılan: %(default)s, DEBUG HTTP isteklerini de gösterir)")
     args = parser.parse_args()
+
+    # Her log satırı: saat, seviye, mesaj. Örnek: 14:03:12 INFO    34 ABC 123   #8040  41.01595, ...
+    # Python logları varsayılan olarak stderr'e yazar; bu programın asıl çıktısı loglar olduğu için stdout'a yazıyoruz
+    # (yoksa "python simulator.py --all > kayit.txt" dosyaya hiçbir şey yazmazdı)
+    logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)-7s %(message)s", datefmt="%H:%M:%S",
+                        stream=sys.stdout)
 
     api = FiloTakipApi(args.api_url)
     try:
@@ -99,7 +117,7 @@ def main():
         elif args.vehicle is not None:
             vehicle = api.get_vehicle(args.vehicle)
             if vehicle is None:
-                print(f"{args.vehicle} numaralı araç bulunamadı.")
+                log.error("%s numaralı araç bulunamadı.", args.vehicle)
                 return
             vehicles = [vehicle]
         else:
@@ -111,11 +129,12 @@ def main():
         sims = [VehicleSimulator(v, routes[i % len(routes)]) for i, v in enumerate(vehicles)]
         run(api, sims, args.interval, args.steps, args.speedup)
     except FileNotFoundError:
-        print(f"{ROUTES_FILE.name} bulunamadı. Önce rotaları oluştur: python build_routes.py")
+        log.error("%s bulunamadı. Önce rotaları oluştur: python build_routes.py", ROUTES_FILE.name)
     except requests.ConnectionError:
-        print(f"API'ye bağlanılamadı ({api.base_url}). API çalışıyor mu? (backend/FiloTakip.Api klasöründe: dotnet run)")
+        log.error("API'ye bağlanılamadı (%s). API çalışıyor mu? (backend/FiloTakip.Api klasöründe: dotnet run)",
+                  api.base_url)
     except KeyboardInterrupt:
-        print("\nSimülatör durduruldu.")
+        log.info("Simülatör durduruldu.")
 
 
 if __name__ == "__main__":

@@ -90,6 +90,7 @@ python simulator.py --all --speedup 10
 | `--steps 20` | 20 tur sonra durur (varsayılan: Ctrl+C'ye kadar) |
 | `--speedup 10` | Zaman 10 kat hızlı akar, haritada hareket belirgin olur |
 | `--api-url http://...` | Başka adresteki API'ye gönderir |
+| `--log-level ERROR` | Sadece sorunları yazar (bkz. [Loglar](#loglar)) |
 | `python simulator.py --help` | Bütün seçenekleri listeler |
 
 Araçlar `routes.json` dosyasındaki gerçek yollar üzerinde gider. Rotaları değiştirirsen
@@ -122,6 +123,38 @@ cd frontend; ng test --watch=false          # Angular testleri
 | API'ye istek atabilecek siteler (CORS) | `backend/FiloTakip.Api/appsettings.Development.json` → `Cors:AllowedOrigins` |
 | Arayüzün kullandığı API adresi | `frontend/src/environments/environment.development.ts` → `apiUrl` |
 | Simülatörün kullandığı API adresi | `--api-url` ya da `FILOTAKIP_API_URL` ortam değişkeni (varsayılan `http://localhost:5275`) |
+| API'nin log seviyeleri | `backend/FiloTakip.Api/appsettings.json` → `Logging:LogLevel` |
+| Simülatörün log seviyesi | `--log-level` (varsayılan `INFO`) |
+
+## Loglar
+
+API'nin terminalindeki her satır saat, seviye ve kaynakla (logu yazan sınıf) başlar:
+
+```text
+14:03:12 info: FiloTakip.Api.Services.LocationService[0] Hız alarmı #47: 34 ABC 123 98.5 km/s (sınır 90)
+14:03:15 warn: FiloTakip.Api.Services.LocationService[0] Konum reddedildi: 999 numaralı araç yok
+```
+
+| Seviye | API ne zaman yazar |
+| --- | --- |
+| Debug (normalde gizli) | Her kaydedilen konum |
+| Information | Hız alarmı üretildi, alarm(lar) okundu işaretlendi |
+| Warning | Olmayan bir araç için konum geldi |
+
+Seviyeler `appsettings.json` → `Logging:LogLevel` içinde, kaynağa göre ayarlanır. EF Core'un SQL sorguları
+gürültü olmasın diye `Warning`'e kısıldı; sorguları görmek için `Microsoft.EntityFrameworkCore.Database.Command`
+satırını `Information` yap.
+
+Kendi kodumuzun Debug loglarını dosyayı değiştirmeden açmak için (terminal kapanınca ayar da gider):
+
+```powershell
+$env:Logging__LogLevel__FiloTakip = "Debug"
+dotnet run
+```
+
+Simülatör de aynı biçimde yazar: `14:03:12 INFO    34 ABC 123   #8040  41.01595, 28.98611   67.3 km/s ...`.
+Hız ihlali simülatör için normal bir olay olduğundan INFO seviyesinde, `⚠️ HIZ SINIRI AŞILDI` işaretiyle yazılır.
+Konum gönderilemezse ERROR yazılır. `--log-level ERROR` sadece sorunları, `--log-level DEBUG` HTTP isteklerini de gösterir.
 
 ## API
 
