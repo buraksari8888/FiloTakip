@@ -1,4 +1,5 @@
 using FiloTakip.Api.Data;
+using FiloTakip.Api.Errors;
 using FiloTakip.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,11 @@ builder.Services.AddCors(options =>
         .AllowAnyHeader()
         .AllowAnyMethod()));
 
+// Hata cevapları tek tip olsun: her hata "ProblemDetails" biçiminde JSON döner
+// ({ "title": ..., "status": ..., "traceId": ... }), istemci hepsini aynı şekilde okuyabilir
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -31,6 +37,12 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+// Yakalanmamış hataları GlobalExceptionHandler'a gönderir. En başta: sonraki her adımın hatasını yakalasın
+app.UseExceptionHandler();
+// Gövdesi boş hata cevaplarına (ör. olmayan adres -> 404) ProblemDetails gövdesi ekler
+app.UseStatusCodePages();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
