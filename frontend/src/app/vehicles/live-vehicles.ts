@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Service, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { catchError, EMPTY, switchMap, tap, timer } from 'rxjs';
@@ -11,17 +12,18 @@ const REFRESH_MS = 3000; // simülatör de 3 saniyede bir konum gönderiyor
 export class LiveVehicles {
   private readonly api = inject(VehicleApi);
 
-  readonly apiError = signal(false);
+  // Son isteğin hatası (başarılıysa null). Sayfalar bunu uyarı kutusunda gösterir.
+  readonly apiError = signal<HttpErrorResponse | null>(null);
 
   // Hemen ve sonra her 3 saniyede bir API'den son konumları çek.
-  // API'ye ulaşılamazsa son gelen liste kalır, apiError true olur.
+  // İstek başarısız olursa son gelen liste kalır, hata apiError'a yazılır.
   readonly vehicles = toSignal(
     timer(0, REFRESH_MS).pipe(
       switchMap(() =>
         this.api.getLastLocations().pipe(
-          tap(() => this.apiError.set(false)),
-          catchError(() => {
-            this.apiError.set(true);
+          tap(() => this.apiError.set(null)),
+          catchError((error: HttpErrorResponse) => {
+            this.apiError.set(error);
             return EMPTY;
           }),
         ),

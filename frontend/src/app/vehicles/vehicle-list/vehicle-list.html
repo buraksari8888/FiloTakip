@@ -1,7 +1,7 @@
 <h1>Araçlar</h1>
 
-@if (apiError()) {
-  <app-api-error-alert />
+@if (apiError(); as error) {
+  <app-api-error-alert [error]="error" />
 }
 
 @if (vehicles(); as list) {

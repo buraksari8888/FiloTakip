@@ -1,7 +1,7 @@
 <h1>Harita</h1>
 
-@if (apiError()) {
-  <app-api-error-alert />
+@if (apiError(); as error) {
+  <app-api-error-alert [error]="error" />
 }
 
 <div #map class="map"></div>

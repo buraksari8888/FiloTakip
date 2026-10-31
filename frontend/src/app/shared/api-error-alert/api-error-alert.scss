@@ -9,3 +9,10 @@
   background: var(--danger-bg);
   color: var(--danger);
 }
+
+// Hata kodu kendi satırında, daha küçük ve soluk
+.trace {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.8;
+}

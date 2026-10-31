@@ -25,7 +25,7 @@ from pathlib import Path
 
 import requests
 
-from api_client import FiloTakipApi, LocationRejectedError
+from api_client import ApiError, FiloTakipApi
 from vehicle import VehicleSimulator
 
 log = logging.getLogger(__name__)
@@ -72,8 +72,9 @@ def run(api, sims, interval, steps, speedup):
             payload = sim.to_payload()
             try:
                 location_id = api.send_location(payload)
-            except LocationRejectedError as error:
-                log.error("%-12s API konumu reddetti: %s", sim.plate, error)
+            except ApiError as error:
+                # API cevap verdi ama konumu kaydetmedi (400: veri geçersiz, 500: sunucuda hata...)
+                log.error("%-12s API konumu kaydetmedi: %s", sim.plate, error)
                 continue
             except requests.RequestException as error:
                 # Bir konum gönderilemedi diye simülatör durmasın (gerçek cihazlar da denemeye devam eder)
@@ -91,6 +92,7 @@ def run(api, sims, interval, steps, speedup):
 
 
 def main():
+    """Çıkış kodunu döner: 0 = başarılı, 1 = hata (onu çalıştıran betikler başarısız olduğunu anlayabilsin)."""
     parser = argparse.ArgumentParser(description="FiloTakip araç simülatörü")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--all", action="store_true", help="bütün aktif araçları sür")
@@ -118,11 +120,11 @@ def main():
             vehicle = api.get_vehicle(args.vehicle)
             if vehicle is None:
                 log.error("%s numaralı araç bulunamadı.", args.vehicle)
-                return
+                return 1
             vehicles = [vehicle]
         else:
             print_vehicles(api)
-            return
+            return 0
 
         # Her araca sırayla bir rota ver (5'ten fazla araç olursa rotalar tekrar kullanılır)
         routes = load_routes()
@@ -130,12 +132,22 @@ def main():
         run(api, sims, args.interval, args.steps, args.speedup)
     except FileNotFoundError:
         log.error("%s bulunamadı. Önce rotaları oluştur: python build_routes.py", ROUTES_FILE.name)
+        return 1
     except requests.ConnectionError:
         log.error("API'ye bağlanılamadı (%s). API çalışıyor mu? (backend/FiloTakip.Api klasöründe: dotnet run)",
                   api.base_url)
+        return 1
+    except requests.RequestException as error:
+        # Bağlantı kuruldu ama istek tamamlanamadı (ör. API 5 saniyede cevap vermedi: Timeout)
+        log.error("API'ye yapılan istek başarısız oldu: %s", error.__class__.__name__)
+        return 1
+    except ApiError as error:
+        log.error("API hata döndürdü: %s", error)
+        return 1
     except KeyboardInterrupt:
         log.info("Simülatör durduruldu.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
