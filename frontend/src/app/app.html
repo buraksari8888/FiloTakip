@@ -10,6 +10,10 @@
       }
     </a>
   </nav>
+
+  <span class="live" [class]="liveStatus()" [attr.title]="liveStatusText[liveStatus()].title">
+    <span class="live-label">{{ liveStatusText[liveStatus()].label }}</span>
+  </span>
 </header>
 
 <main>
