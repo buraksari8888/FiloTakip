@@ -1,4 +1,5 @@
 using FiloTakip.Api.Data;
+using FiloTakip.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Veritabanı bağlantısı: bağlantı bilgisi appsettings.json > ConnectionStrings > FiloTakip
 builder.Services.AddDbContext<FiloTakipDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("FiloTakip")));
+
+// Servis katmanı (iş mantığı). Scoped: her HTTP isteği için yeni bir örnek, DbContext ile aynı ömür
+builder.Services.AddScoped<VehicleService>();
+builder.Services.AddScoped<LocationService>();
+builder.Services.AddScoped<AlarmService>();
 
 // CORS: tarayıcı, Angular'ın (localhost:4200) bu API'ye (localhost:5275) istek atmasına
 // ancak API izin verirse izin verir
