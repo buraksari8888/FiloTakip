@@ -14,12 +14,15 @@ import {
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import * as L from 'leaflet';
-import { catchError, of, switchMap } from 'rxjs';
+import { catchError, filter, of, scan, startWith, switchMap } from 'rxjs';
 import { Alarm } from '../../alarms/alarm';
 import { AlarmApi } from '../../alarms/alarm-api';
+import { LiveHub, LocationUpdate } from '../../core/live-hub';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
+import { VehicleApi } from '../../vehicles/vehicle-api';
 import { isLowFuel, isSpeeding, VehicleLastLocation } from '../../vehicles/vehicle-last-location';
+import { recentTrail, TRAIL_MINUTES, trailSegments } from './trail';
 
 const ISTANBUL: L.LatLngTuple = [41.03, 28.98];
 const FOCUS_ZOOM = 16; // tek bir araca ya da alarma yakınlaşırken (sokak düzeyi)
@@ -39,6 +42,8 @@ function toId(value: string | undefined): number | undefined {
 export class VehicleMap {
   private readonly live = inject(LiveVehicles);
   private readonly alarmApi = inject(AlarmApi);
+  private readonly vehicleApi = inject(VehicleApi);
+  private readonly hub = inject(LiveHub);
   private readonly locale = inject(LOCALE_ID);
   private readonly mapElement = viewChild.required<ElementRef<HTMLDivElement>>('map');
 
@@ -69,9 +74,46 @@ export class VehicleMap {
     { initialValue: null },
   );
 
+  // Bilgi balonu açık olan araç (yoksa null). İz sadece onun için çizilir: hepsinin izi birden haritayı karıştırırdı.
+  private readonly selectedVehicleId = signal<number | null>(null);
+  protected readonly trailError = signal<HttpErrorResponse | null>(null);
+
+  // Seçili aracın izi: önce son TRAIL_MINUTES dakika API'den çekilir, sonra canlı gelen her konum ucuna eklenir.
+  // Canlı bağlantı koptuktan sonra yeniden kurulunca iz baştan çekilir (kopukken gelen konumlar kaçmış olabilir).
+  private readonly trail = toSignal(
+    toObservable(this.selectedVehicleId).pipe(
+      switchMap((vehicleId) => {
+        this.trailError.set(null);
+        if (vehicleId === null) {
+          return of([]);
+        }
+        return this.hub.reconnected$.pipe(
+          startWith(undefined),
+          switchMap(() =>
+            this.vehicleApi.getRecentLocations(vehicleId, TRAIL_MINUTES).pipe(
+              catchError((error: HttpErrorResponse) => {
+                this.trailError.set(error);
+                return of([]);
+              }),
+            ),
+          ),
+          switchMap((history) =>
+            this.hub.locationAdded$.pipe(
+              filter((location) => location.vehicleId === vehicleId),
+              scan((points, location) => recentTrail([...points, location], TRAIL_MINUTES), history),
+              startWith(history),
+            ),
+          ),
+        );
+      }),
+    ),
+    { initialValue: [] },
+  );
+
   private readonly map = signal<L.Map | null>(null);
   private readonly markers = new Map<number, L.Marker>(); // aracın numarası -> haritadaki işareti
   private alarmMarker: L.CircleMarker | null = null;
+  private trailLayer: L.LayerGroup | null = null; // izin parçaları (soluktan koyuya)
   // En son neye yakınlaştırıldı ("hepsi", "arac-3", "alarm-46"). Aynı hedefe bir kez yakınlaştırılır:
   // her canlı güncellemede tekrar yakınlaştırsak kullanıcının kaydırdığı harita geri zıplardı.
   private zoomedTo: string | null = null;
@@ -105,6 +147,14 @@ export class VehicleMap {
       }
     });
 
+    // Seçili aracın izi değiştikçe çizgiyi güncelle
+    effect(() => {
+      const map = this.map();
+      if (map) {
+        this.drawTrail(map, this.trail());
+      }
+    });
+
     // Sayfadan çıkınca haritayı temizle
     inject(DestroyRef).onDestroy(() => this.map()?.remove());
   }
@@ -124,6 +174,10 @@ export class VehicleMap {
         marker.setLatLng(position); // var olan işareti yeni konuma taşı
       } else {
         marker = L.marker(position, { icon: markerIcon(v.plate) }).bindPopup('').addTo(map);
+        // Balon açılınca o aracın izi çizilir, kapanınca silinir
+        const vehicleId = v.vehicleId;
+        marker.on('popupopen', () => this.selectedVehicleId.set(vehicleId));
+        marker.on('popupclose', () => this.selectedVehicleId.set(null));
         this.markers.set(v.vehicleId, marker);
       }
       marker.getElement()?.classList.toggle('speeding', isSpeeding(v));
@@ -180,6 +234,18 @@ export class VehicleMap {
     this.zoomedTo = `alarm-${alarm.alarmId}`;
   }
 
+  // Aracın geçtiği yol: konumları sırayla birleştiren mavi çizgi (araç işaretlerinin altında kalır).
+  // Eski parçalar açık mavi, yeni parçalar koyu mavi. Parçalar eskiden yeniye eklenir, böylece araç
+  // aynı yoldan geri döndüyse yeni (koyu) çizgi eskisinin üstünde kalır.
+  private drawTrail(map: L.Map, points: LocationUpdate[]): void {
+    this.trailLayer ??= L.layerGroup().addTo(map);
+    this.trailLayer.clearLayers();
+    for (const segment of trailSegments(points, TRAIL_MINUTES)) {
+      const latLngs = segment.points.map((p): L.LatLngTuple => [p.latitude, p.longitude]);
+      L.polyline(latLngs, { color: trailColor(segment.fade), weight: 4, opacity: 1 }).addTo(this.trailLayer);
+    }
+  }
+
   private alarmPopupHtml(alarm: Alarm): string {
     return `
       <strong>${escapeHtml(alarm.plate)}</strong><br>
@@ -200,6 +266,15 @@ export class VehicleMap {
       Yakıt: <span class="${isLowFuel(v) ? 'warning' : ''}">${fuel}</span><br>
       Son sinyal: ${lastSignal}`;
   }
+}
+
+// İz rengi: fade 0 = koyu mavi (#1a62c4), fade 1 = açık mavi (#b4cbee); arası iki rengin karışımı.
+// Saydamlık yerine açık renk kullanıyoruz: saydam çizgiler üst üste binince birbirinin içinden görünürdü.
+function trailColor(fade: number): string {
+  const dark = [26, 98, 196];
+  const light = [180, 203, 238];
+  const [r, g, b] = dark.map((d, i) => Math.round(d + (light[i] - d) * fade));
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 // Haritadaki işaret: renkli nokta + yanında plaka

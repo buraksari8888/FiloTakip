@@ -68,8 +68,8 @@ Arayüz: <http://localhost:4200>
 
 | Sayfa | Adres | İçerik |
 | --- | --- | --- |
-| Harita | `/harita` | Bütün araçlar canlı olarak haritada |
-| | `/harita?arac=3` | O araca yakınlaşır, bilgi balonunu açar |
+| Harita | `/harita` | Bütün araçlar canlı olarak haritada. Bir araca tıklanınca son 30 dakikada geçtiği yol mavi çizgiyle gösterilir: iz yeni konum geldikçe uzar, eski kısmı soluk çizilir, 2 dakikadan uzun boşluk ya da 2 km'den büyük sıçramada kopar |
+| | `/harita?arac=3` | O araca yakınlaşır, bilgi balonunu ve izini açar |
 | | `/harita?alarm=46` | Alarmın olduğu yeri kırmızı halkayla gösterir (aracın şu anki yeri değil) |
 | Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster" |
 | Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme; her satırda "Haritada göster" |
@@ -225,6 +225,7 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `GET /api/vehicles` | Bütün araçlar |
 | `GET /api/vehicles/{id}` | Tek araç |
 | `GET /api/vehicles/last-locations` | Her aracın son konumu (harita ve liste bunu kullanır) |
+| `GET /api/vehicles/{id}/locations?minutes=30` | Aracın son X dakikadaki konumları, eskiden yeniye (haritadaki iz; `minutes` 1–1440) |
 | `POST /api/locations` | Yeni konum kaydı (simülatör bunu kullanır), gerekirse alarm üretir |
 | `GET /api/locations/{id}` | Tek konum kaydı |
 | `GET /api/alarms?unreadOnly=true&take=50` | En yeni alarmlar |

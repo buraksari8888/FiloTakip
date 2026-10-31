@@ -8,4 +8,8 @@
   <app-api-error-alert [error]="error" action="Alarm haritada gösterilemedi" />
 }
 
+@if (trailError(); as error) {
+  <app-api-error-alert [error]="error" action="Aracın izi yüklenemedi" />
+}
+
 <div #map class="map"></div>

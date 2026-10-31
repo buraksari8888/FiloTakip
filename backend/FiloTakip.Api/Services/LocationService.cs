@@ -81,6 +81,22 @@ public class LocationService(
         return record is null ? null : ToDto(record);
     }
 
+    // Aracın son X dakikadaki konumları, eskiden yeniye (haritada aracın arkasındaki iz için).
+    // Araç yoksa null döner. IX_LocationRecords_Vehicle_Time index'i bu sorguyu da hızlandırır.
+    public async Task<List<LocationDto>?> GetRecentAsync(int vehicleId, int minutes, CancellationToken cancellationToken)
+    {
+        if (!await db.Vehicles.AnyAsync(v => v.VehicleId == vehicleId, cancellationToken))
+            return null;
+
+        var since = DateTime.UtcNow.AddMinutes(-minutes);
+        return await db.LocationRecords
+            .Where(l => l.VehicleId == vehicleId && l.RecordedAt >= since)
+            .OrderBy(l => l.RecordedAt)
+            .ThenBy(l => l.LocationId)   // aynı saniyede gelenler eklenme sırasıyla
+            .Select(l => ToDto(l))
+            .ToListAsync(cancellationToken);
+    }
+
     private static LocationDto ToDto(LocationRecord r) =>
         new(r.LocationId, r.VehicleId, r.Latitude, r.Longitude, r.SpeedKmh, r.FuelPercent, r.IgnitionOn, r.RecordedAt);
 }
