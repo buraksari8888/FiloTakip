@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 FUEL_PERCENT_PER_KM = 0.5   # gösterim için abartılı tüketim (gerçekte ~0.15)
 STOP_CHANCE = 0.3           # durağa varınca durma ihtimali (%30)
+THEFT_CHANCE = 0.03         # durakta dururken depodan yakıt çekilme ihtimali (%3; gösterim için sık, gerçekte çok nadir)
 
 
 def distance_km(lat1, lon1, lat2, lon2):
@@ -42,13 +43,25 @@ class VehicleSimulator:
         self.speed = 0.0
         self.fuel = random.uniform(40, 95)
         self.stop_ticks = 0                     # kaç adım daha duracak
+        self.theft_ticks = 0                    # hırsızlık senaryosu: kaç adım daha depodan yakıt çekilecek
+        self.draining = False                   # bu adımda depodan yakıt çekildi mi (ekrana yazmak için)
+        self.ignition_on = True
 
     def step(self, seconds):
         """Aracı 'seconds' saniye kadar ilerletir."""
+        self.draining = False
         if self.stop_ticks > 0:
             self.stop_ticks -= 1
             self.speed = 0.0
+            if self.theft_ticks > 0:
+                # Her adımda %6-10. API'nin hırsızlık alarmı için durduğundan beri toplam düşüş önemli;
+                # günlük rapor da tek adımda %5'ten büyük düşüşü tüketim saymaz.
+                self.theft_ticks -= 1
+                self.fuel = max(self.fuel - random.uniform(6, 10), 0.0)
+                self.draining = True
             return
+
+        self.ignition_on = True                 # yola çıkarken kontak açılır
 
         # Hız: biraz rastgele değişsin, 5 ile max_speed arasında kalsın
         self.speed = min(max(self.speed + random.uniform(-8, 12), 5.0), self.max_speed)
@@ -78,7 +91,16 @@ class VehicleSimulator:
             if arrived_index in self.stops and random.random() < STOP_CHANCE:
                 self.stop_ticks = random.randint(1, 3)
                 self.speed = 0.0
+                if random.random() < THEFT_CHANCE:
+                    self._start_theft()
                 break
+
+    def _start_theft(self):
+        """Hırsızlık senaryosu: araç park halinde, kontak kapalı; 2-3 adım boyunca depodan yakıt çekilir.
+        Duruş uzatılır ki çekme bittikten sonra da araç bir süre yerinde kalsın."""
+        self.theft_ticks = random.randint(2, 3)
+        self.stop_ticks = self.theft_ticks + 2
+        self.ignition_on = False
 
     def _next_target(self):
         """Sıradaki noktayı seç; rotanın sonuna gelince geri dön."""
@@ -96,6 +118,6 @@ class VehicleSimulator:
             "longitude": round(self.lon, 6),
             "speedKmh": round(self.speed, 1),
             "fuelPercent": round(self.fuel, 2),
-            "ignitionOn": True,
+            "ignitionOn": self.ignition_on,
             "recordedAt": datetime.now(timezone.utc).isoformat(),
         }

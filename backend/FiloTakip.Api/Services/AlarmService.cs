@@ -29,7 +29,7 @@ public class AlarmService(
         a.Location == null ? null : a.Location.Latitude,
         a.Location == null ? null : a.Location.Longitude);
 
-    // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt). KAYDETMEZ: kaydetme işini çağıran yapar,
+    // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt, yakıt hırsızlığı). KAYDETMEZ: kaydetme işini çağıran yapar,
     // böylece konum ve alarmlar tek SaveChanges ile birlikte kaydedilir (ya hepsi ya hiçbiri).
     // previous: aracın bir önceki konumu (ilk konumuysa null). Eklenen alarmları döner, çoğu zaman boş liste.
     public async Task<List<Alarm>> AddAlarmsIfNeededAsync(
@@ -62,7 +62,42 @@ public class AlarmService(
             added.Add(AddAlarm(location, AlarmTypes.LowFuel, AlarmRules.LowFuelMessage(fuel)));
         }
 
+        // Yakıt hırsızlığı: sadece araç dururken bakılır (giderken yakıt zaten harcanır, depo da çalkalanır)
+        if (location.FuelPercent is decimal currentFuel
+            && AlarmRules.IsStationary(location.SpeedKmh)
+            && await GetFuelWhenStoppedIfDrainedAsync(location.VehicleId, currentFuel, cancellationToken) is decimal fuelWhenStopped)
+        {
+            added.Add(AddAlarm(location, AlarmTypes.FuelDrain, AlarmRules.FuelDrainMessage(fuelWhenStopped, currentFuel)));
+        }
+
         return added;
+    }
+
+    // Araç durduğundan beri yakıt eşikten fazla düştüyse durduğu andaki yakıtı döner, yoksa null.
+    // Bu duruşta zaten hırsızlık alarmı verildiyse de null: yakıt azalmaya devam etse de duruş başına tek alarm.
+    private async Task<decimal?> GetFuelWhenStoppedIfDrainedAsync(
+        int vehicleId, decimal currentFuelPercent, CancellationToken cancellationToken)
+    {
+        // Araç en son ne zaman hareket ediyordu? Duruş o an başladı (hiç hareket etmediyse ilk kaydından beri duruyor).
+        var lastMovingAt = await db.LocationRecords
+            .Where(l => l.VehicleId == vehicleId && l.SpeedKmh >= AlarmRules.StationarySpeedKmh)
+            .MaxAsync(l => (DateTime?)l.RecordedAt, cancellationToken);
+
+        // Durduğundan beri ölçülen en yüksek yakıt (son hareketli kayıt dahil: durduğu andaki yakıt).
+        // En yükseğini alıyoruz: araç dururken depo doldurulup sonra boşaltılırsa da yakalansın.
+        var fuelWhenStopped = await db.LocationRecords
+            .Where(l => l.VehicleId == vehicleId && (lastMovingAt == null || l.RecordedAt >= lastMovingAt))
+            .MaxAsync(l => l.FuelPercent, cancellationToken);
+        if (fuelWhenStopped is not decimal fuel || !AlarmRules.IsFuelDrain(fuel, currentFuelPercent))
+            return null;
+
+        // Saatler aynı kaynaktan karşılaştırılsın diye alarmın kendi saatine değil, bağlı olduğu konumun saatine bakılır
+        var alreadyAlarmed = await db.Alarms.AnyAsync(
+            a => a.VehicleId == vehicleId
+                 && a.AlarmType == AlarmTypes.FuelDrain
+                 && (lastMovingAt == null || a.Location!.RecordedAt >= lastMovingAt),
+            cancellationToken);
+        return alreadyAlarmed ? null : fuel;
     }
 
     // Bu aracın bu türdeki son alarmı ne zamandı? (bekleme süresi kontrolü için; hiç yoksa null)

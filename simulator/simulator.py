@@ -83,6 +83,8 @@ def run(api, sims, interval, steps, speedup):
 
             # Hız ihlali simülatör için bir hata değil, beklenen bir olay: seviyesi INFO, sadece işaretlenir
             warning = "  ⚠️ HIZ SINIRI AŞILDI" if payload["speedKmh"] > sim.speed_limit else ""
+            if sim.draining:
+                warning += "  ⛽ DEPODAN YAKIT ÇEKİLİYOR (hırsızlık senaryosu)"
             log.info("%-12s #%s  %.5f, %.5f  %5.1f km/s  yakıt %%%.1f%s",   # %% = düz yüzde işareti
                      sim.plate, location_id, payload["latitude"], payload["longitude"],
                      payload["speedKmh"], payload["fuelPercent"], warning)

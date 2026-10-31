@@ -79,7 +79,7 @@ CREATE TABLE dbo.Alarms
     AlarmId    BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Alarms PRIMARY KEY,
     VehicleId  INT            NOT NULL CONSTRAINT FK_Alarms_Vehicles REFERENCES dbo.Vehicles (VehicleId),
     LocationId BIGINT         NULL     CONSTRAINT FK_Alarms_LocationRecords REFERENCES dbo.LocationRecords (LocationId),
-    AlarmType  VARCHAR(20)    NOT NULL CONSTRAINT CK_Alarms_Type CHECK (AlarmType IN ('SpeedLimit', 'LowFuel', 'Idle')),
+    AlarmType  VARCHAR(20)    NOT NULL CONSTRAINT CK_Alarms_Type CHECK (AlarmType IN ('SpeedLimit', 'LowFuel', 'Idle', 'FuelDrain')),
     Message    NVARCHAR(200)  NOT NULL,
     IsRead     BIT            NOT NULL CONSTRAINT DF_Alarms_IsRead    DEFAULT (0),
     CreatedAt  DATETIME2(0)   NOT NULL CONSTRAINT DF_Alarms_CreatedAt DEFAULT (SYSUTCDATETIME())

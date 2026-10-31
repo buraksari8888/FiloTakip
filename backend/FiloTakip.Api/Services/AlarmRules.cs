@@ -76,4 +76,21 @@ public static class AlarmRules
 
     public static string LowFuelMessage(decimal fuelPercent) =>
         $"Yakıt seviyesi düşük: %{fuelPercent.ToString("0.#", Turkish)}";
+
+    // Araç bu hızın altındaysa duruyor sayılır (GPS, duran araçta bile 1-2 km/s gösterebilir)
+    public const decimal StationarySpeedKmh = 3;
+
+    // Araç dururken yakıt bu kadar puan düşerse hırsızlık şüphesi. Duran araçta yakıt neredeyse hiç
+    // harcanmaz; sensör dalgalanması da ±1-2 puandır, 5 puanlık düşüş bunlarla açıklanamaz.
+    public const decimal FuelDrainPercent = 5;
+
+    public static bool IsStationary(decimal speedKmh) => speedKmh < StationarySpeedKmh;
+
+    // Araç durduğundan beri yakıt eşik kadar düştü mü? fuelWhenStopped: durduğundan beri ölçülen en yüksek yakıt
+    public static bool IsFuelDrain(decimal fuelWhenStopped, decimal currentFuelPercent) =>
+        fuelWhenStopped - currentFuelPercent >= FuelDrainPercent;
+
+    public static string FuelDrainMessage(decimal fuelWhenStopped, decimal currentFuelPercent) =>
+        $"Araç dururken yakıt düştü: %{fuelWhenStopped.ToString("0.#", Turkish)} → " +
+        $"%{currentFuelPercent.ToString("0.#", Turkish)} (hırsızlık şüphesi)";
 }
