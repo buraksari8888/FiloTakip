@@ -85,6 +85,8 @@ def run(api, sims, interval, steps, speedup):
             warning = "  ⚠️ HIZ SINIRI AŞILDI" if payload["speedKmh"] > sim.speed_limit else ""
             if sim.draining:
                 warning += "  ⛽ DEPODAN YAKIT ÇEKİLİYOR (hırsızlık senaryosu)"
+            if sim.idle_started:
+                warning += f"  🕒 MOTOR ÇALIŞIR HALDE UZUN BEKLEME BAŞLADI (rölanti senaryosu, {sim.stop_ticks} adım)"
             log.info("%-12s #%s  %.5f, %.5f  %5.1f km/s  yakıt %%%.1f%s",   # %% = düz yüzde işareti
                      sim.plate, location_id, payload["latitude"], payload["longitude"],
                      payload["speedKmh"], payload["fuelPercent"], warning)

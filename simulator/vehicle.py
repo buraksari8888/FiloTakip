@@ -10,6 +10,10 @@ from datetime import datetime, timezone
 FUEL_PERCENT_PER_KM = 0.5   # gösterim için abartılı tüketim (gerçekte ~0.15)
 STOP_CHANCE = 0.3           # durağa varınca durma ihtimali (%30)
 THEFT_CHANCE = 0.03         # durakta dururken depodan yakıt çekilme ihtimali (%3; gösterim için sık, gerçekte çok nadir)
+IDLE_CHANCE = 0.03          # durakta motoru çalıştırıp uzun bekleme ihtimali (%3, rölanti senaryosu)
+# Uzun bekleme kaç adım sürsün: varsayılan 3 saniyelik aralıkla 5,5-8 dakika (API 5 dakikada alarm üretir).
+# Adım sayısıyla veriliyor çünkü API süreyi kayıtların saatine (gerçek saat) göre ölçer, --speedup bunu kısaltmaz.
+IDLE_TICKS = (110, 160)
 
 
 def distance_km(lat1, lon1, lat2, lon2):
@@ -45,11 +49,13 @@ class VehicleSimulator:
         self.stop_ticks = 0                     # kaç adım daha duracak
         self.theft_ticks = 0                    # hırsızlık senaryosu: kaç adım daha depodan yakıt çekilecek
         self.draining = False                   # bu adımda depodan yakıt çekildi mi (ekrana yazmak için)
+        self.idle_started = False               # bu adımda uzun rölanti başladı mı (ekrana yazmak için)
         self.ignition_on = True
 
     def step(self, seconds):
         """Aracı 'seconds' saniye kadar ilerletir."""
         self.draining = False
+        self.idle_started = False
         if self.stop_ticks > 0:
             self.stop_ticks -= 1
             self.speed = 0.0
@@ -91,8 +97,11 @@ class VehicleSimulator:
             if arrived_index in self.stops and random.random() < STOP_CHANCE:
                 self.stop_ticks = random.randint(1, 3)
                 self.speed = 0.0
-                if random.random() < THEFT_CHANCE:
+                scenario = random.random()
+                if scenario < THEFT_CHANCE:
                     self._start_theft()
+                elif scenario < THEFT_CHANCE + IDLE_CHANCE:
+                    self._start_long_idle()
                 break
 
     def _start_theft(self):
@@ -101,6 +110,11 @@ class VehicleSimulator:
         self.theft_ticks = random.randint(2, 3)
         self.stop_ticks = self.theft_ticks + 2
         self.ignition_on = False
+
+    def _start_long_idle(self):
+        """Rölanti senaryosu: şoför motoru kapatmadan uzun süre bekliyor (kontak açık, hız 0)."""
+        self.stop_ticks = random.randint(*IDLE_TICKS)
+        self.idle_started = True
 
     def _next_target(self):
         """Sıradaki noktayı seç; rotanın sonuna gelince geri dön."""

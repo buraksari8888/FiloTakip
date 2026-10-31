@@ -84,4 +84,9 @@ tr.unread td {
     background: var(--fuel-drain);
     color: #fff;
   }
+
+  &.Idle {
+    background: var(--idle);
+    color: #fff;
+  }
 }

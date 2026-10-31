@@ -3,7 +3,7 @@
 Araç filosu takip sistemi. Staj öncesi pratik projesi.
 
 Araçlardaki GPS cihazlarını taklit eden bir simülatör, konumları API'ye gönderir. API konumları
-veritabanına kaydeder, hız sınırı aşılınca ya da yakıt azalınca alarm üretir. Web arayüzü araçları canlı olarak haritada
+veritabanına kaydeder, hız sınırı aşılınca, yakıt azalınca ya da araç uzun süre rölantide kalınca alarm üretir. Web arayüzü araçları canlı olarak haritada
 ve listede gösterir.
 
 ```text
@@ -108,9 +108,14 @@ python simulator.py --all --speedup 10
 | `--log-level ERROR` | Sadece sorunları yazar (bkz. [Loglar](#loglar)) |
 | `python simulator.py --help` | Bütün seçenekleri listeler |
 
-Araçlar duraklarda ara sıra durur. Duruşların %3'ünde **hırsızlık senaryosu** oynanır: kontak kapanır,
-2-3 adım boyunca depodan her adımda %6-10 yakıt çekilir (terminalde `⛽ DEPODAN YAKIT ÇEKİLİYOR` yazar)
-ve API yakıt kaybı alarmı üretir.
+Araçlar duraklarda ara sıra durur. Bazı duruşlarda bir senaryo oynanır:
+
+| Senaryo | Sıklık | Ne olur | Terminalde |
+| --- | --- | --- | --- |
+| Hırsızlık | Duruşların %3'ü | Kontak kapanır, 2-3 adım boyunca depodan her adımda %6-10 yakıt çekilir; API yakıt kaybı alarmı üretir | `⛽ DEPODAN YAKIT ÇEKİLİYOR` |
+| Uzun rölanti | Duruşların %3'ü | Motor çalışır halde 110-160 adım beklenir (3 saniyelik aralıkla 5,5-8 dakika); 5. dakikada API rölanti alarmı üretir | `🕒 MOTOR ÇALIŞIR HALDE UZUN BEKLEME BAŞLADI` |
+
+Rölanti süresi gerçek saatle ölçüldüğü için `--speedup` bu beklemeyi kısaltmaz.
 
 Araçlar `routes.json` dosyasındaki gerçek yollar üzerinde gider. Rotaları değiştirirsen
 `python build_routes.py` ile yeniden oluştur. Bu komut OSRM yol tarifi servisine internetten istek atar.
@@ -185,7 +190,7 @@ API'nin terminalindeki her satır saat, seviye ve kaynakla (logu yazan sınıf) 
 | Seviye | API ne zaman yazar |
 | --- | --- |
 | Debug (normalde gizli) | Her kaydedilen konum |
-| Information | Alarm üretildi (hız, düşük yakıt, yakıt kaybı), alarm(lar) okundu işaretlendi |
+| Information | Alarm üretildi (hız, düşük yakıt, yakıt kaybı, rölanti), alarm(lar) okundu işaretlendi |
 | Warning | Olmayan bir araç için konum geldi |
 
 Seviyeler `appsettings.json` → `Logging:LogLevel` içinde, kaynağa göre ayarlanır. EF Core'un SQL sorguları
@@ -271,6 +276,10 @@ kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi
   depo çalkalanır). Karşılaştırma duruştaki en yüksek yakıtla yapılır: araç dururken depo doldurulup
   sonra boşaltılırsa da yakalanır. Duruş başına tek alarm üretilir; alarm, düşüş 5 puanı geçtiği an üretildiği
   için mesajdaki miktar o anki düşüştür (çekme devam ettiyse toplam kayıp daha fazla olabilir).
+- **Rölanti alarmı:** Kontak açık ve araç duruyorsa (hız 3 km/s'in altında) motor boşa yakıt yakıyor demektir.
+  Kırmızı ışık ya da kısa bekleme normaldir; bu durum 5 dakika sürerse alarm üretilir. Süre konum kayıtlarının
+  saatine göre ölçülür. Araç hareket edince ya da kontak kapanınca rölanti biter, sonraki rölanti yeniden
+  sayılır. Rölanti başına tek alarm üretilir. Kontak kapalı park halinde alarm yoktur.
 - **Liste ve harita:** Hız sınırın üstündeyse araç toleranssız olarak kırmızı, yakıt %15'in altındaysa turuncu gösterilir.
 
 ## Proje yapısı
