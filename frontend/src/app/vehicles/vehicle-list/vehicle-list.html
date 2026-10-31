@@ -22,6 +22,7 @@
           <th class="num">Yakıt</th>
           <th>Kontak</th>
           <th>Son sinyal</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -39,8 +40,9 @@
               <td class="num" [class.warning]="isLowFuel(v)">%{{ v.fuelPercent | number: '1.0-1' }}</td>
               <td>{{ v.ignitionOn ? 'Açık' : 'Kapalı' }}</td>
               <td>{{ v.recordedAt | date: 'dd.MM.yyyy HH:mm:ss' }}</td>
+              <td><a routerLink="/harita" [queryParams]="{ arac: v.vehicleId }">Haritada göster</a></td>
             } @else {
-              <td colspan="4" class="muted">Henüz konum gelmedi</td>
+              <td colspan="5" class="muted">Henüz konum gelmedi</td>
             }
           </tr>
         }

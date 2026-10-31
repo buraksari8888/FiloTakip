@@ -35,6 +35,7 @@
             <th>Tür</th>
             <th>Mesaj</th>
             <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -44,6 +45,12 @@
               <td class="plate">{{ a.plate }}</td>
               <td><span class="chip" [class]="a.alarmType">{{ typeLabels[a.alarmType] }}</span></td>
               <td>{{ a.message }}</td>
+              <td>
+                <!-- Alarmın olduğu yer (aracın şu anki yeri değil) -->
+                @if (a.latitude !== null) {
+                  <a routerLink="/harita" [queryParams]="{ alarm: a.alarmId }">Haritada göster</a>
+                }
+              </td>
               <td class="status">
                 @if (a.isRead) {
                   <span class="muted">Okundu</span>

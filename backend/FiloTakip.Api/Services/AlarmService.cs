@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using FiloTakip.Api.Data;
 using FiloTakip.Api.Dtos;
 using FiloTakip.Api.Hubs;
@@ -14,6 +15,19 @@ public class AlarmService(
     ILogger<AlarmService> logger)
 {
     private const int MaxTake = 200;
+
+    // Alarm -> AlarmDto dönüşümü tek yerde (liste ve tek alarm aynısını kullanır). Expression olduğu için
+    // EF Core bunu SQL'e çevirir: plaka ve konum JOIN ile, sadece gereken sütunlar okunur.
+    private static readonly Expression<Func<Alarm, AlarmDto>> ToDto = a => new AlarmDto(
+        a.AlarmId,
+        a.VehicleId,
+        a.Vehicle!.Plate,
+        a.AlarmType,
+        a.Message,
+        a.IsRead,
+        a.CreatedAt,
+        a.Location == null ? null : a.Location.Latitude,
+        a.Location == null ? null : a.Location.Longitude);
 
     // Yeni gelen konum için gerekiyorsa hız alarmı ekler. KAYDETMEZ: kaydetme işini çağıran yapar,
     // böylece konum ve alarm tek SaveChanges ile birlikte kaydedilir (ya ikisi birden ya hiçbiri).
@@ -61,18 +75,16 @@ public class AlarmService(
             .OrderByDescending(a => a.CreatedAt)
             .ThenByDescending(a => a.AlarmId)
             .Take(take)
-            .Select(a => new AlarmDto(
-                a.AlarmId,
-                a.VehicleId,
-                a.Vehicle!.Plate,
-                a.AlarmType,
-                a.Message,
-                a.IsRead,
-                a.CreatedAt,
-                a.Location == null ? null : a.Location.Latitude,
-                a.Location == null ? null : a.Location.Longitude))
+            .Select(ToDto)
             .ToListAsync(cancellationToken);
     }
+
+    // Alarm yoksa null döner
+    public Task<AlarmDto?> GetByIdAsync(long alarmId, CancellationToken cancellationToken) =>
+        db.Alarms
+            .Where(a => a.AlarmId == alarmId)
+            .Select(ToDto)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken) =>
         db.Alarms.CountAsync(a => !a.IsRead, cancellationToken);
