@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FiloTakip.Api.Tests/FiloTakip.Api.Tests.csproj" />
+  <Project Path="FiloTakip.Api/FiloTakip.Api.csproj" />
+</Solution>
