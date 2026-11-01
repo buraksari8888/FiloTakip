@@ -50,5 +50,13 @@ WHERE VehicleId = 3
 ORDER BY RecordedAt DESC;
 GO
 
+-- Bölgeler: üç simülatör rotasının ucunda (araçlar orada dönüp geri gelir, bölgeye girip çıkarlar)
+INSERT INTO dbo.Geofences (Name, Latitude, Longitude, RadiusMeters, AlarmOnEnter, AlarmOnExit)
+VALUES
+    (N'Yeşilköy Depo',            40.961988, 28.830199, 400, 0, 1),   -- depodan ayrılınca haber ver
+    (N'Sarıyer Teslimat Noktası', 41.164643, 29.051411, 400, 1, 0),   -- müşteriye varınca haber ver
+    (N'Beykoz Şantiye',           41.132845, 29.097354, 400, 1, 1);   -- giriş ve çıkış
+GO
+
 PRINT N'Örnek veriler eklendi.';
 GO

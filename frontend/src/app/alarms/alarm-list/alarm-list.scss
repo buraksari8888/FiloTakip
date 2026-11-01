@@ -89,4 +89,10 @@ tr.unread td {
     background: var(--idle);
     color: #fff;
   }
+
+  &.GeofenceEnter,
+  &.GeofenceExit {
+    background: var(--geofence);
+    color: #fff;
+  }
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using FiloTakip.Api.Models;
 
 namespace FiloTakip.Api.Services;
 
@@ -105,4 +106,23 @@ public static class AlarmRules
 
     public static string IdleMessage(TimeSpan idleFor) =>
         $"Uzun rölanti: motor {(int)idleFor.TotalMinutes} dakikadır çalışıyor, araç yerinde bekliyor";
+
+    // Bölge: merkeze uzaklık yarıçaptan küçük ya da eşitse araç bölgenin içinde
+    public static bool IsInsideGeofence(Geofence zone, decimal latitude, decimal longitude) =>
+        GeoMath.DistanceMeters(zone.Latitude, zone.Longitude, latitude, longitude) <= zone.RadiusMeters;
+
+    // Önceki konumdan bu konuma geçerken bölgenin sınırı geçildiyse ve bölge o yön için alarm istiyorsa
+    // alarm türünü döner (GeofenceEnter / GeofenceExit), yoksa null. Hız alarmı gibi geçişe bakar:
+    // araç bölgenin içinde kaldıkça her konumda yeni alarm üretilmez.
+    public static string? GeofenceAlarmType(Geofence zone, bool wasInside, bool isInside)
+    {
+        if (!wasInside && isInside && zone.AlarmOnEnter)
+            return AlarmTypes.GeofenceEnter;
+        if (wasInside && !isInside && zone.AlarmOnExit)
+            return AlarmTypes.GeofenceExit;
+        return null;
+    }
+
+    public static string GeofenceMessage(string alarmType, string zoneName) =>
+        alarmType == AlarmTypes.GeofenceEnter ? $"Bölgeye girdi: {zoneName}" : $"Bölgeden çıktı: {zoneName}";
 }

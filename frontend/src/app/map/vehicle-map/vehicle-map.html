@@ -8,6 +8,10 @@
   <app-api-error-alert [error]="error" action="Alarm haritada gösterilemedi" />
 }
 
+@if (geofenceError(); as error) {
+  <app-api-error-alert [error]="error" action="Bölgeler yüklenemedi" />
+}
+
 @if (trailError(); as error) {
   <app-api-error-alert [error]="error" action="Aracın izi yüklenemedi" />
 }
