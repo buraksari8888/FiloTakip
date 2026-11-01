@@ -6,12 +6,13 @@
 USE FiloTakip;
 GO
 
+-- Telefonlar uydurma (0500 000 00 0x), gerçek bir kişiye ait olmasın diye
 INSERT INTO dbo.Drivers (FirstName, LastName, Phone, LicenseNumber)
 VALUES
-    (N'Ahmet',  N'Yılmaz', '05321112233', 'B-100001'),
-    (N'Ayşe',   N'Demir',  '05334445566', 'B-100002'),
-    (N'Mehmet', N'Çelik',  '05357778899', 'C-100003'),
-    (N'Zeynep', N'Kaya',   '05362223344', 'B-100004');
+    (N'Ahmet',  N'Yılmaz', '05000000001', 'B-100001'),
+    (N'Ayşe',   N'Demir',  '05000000002', 'B-100002'),
+    (N'Mehmet', N'Çelik',  '05000000003', 'C-100003'),
+    (N'Zeynep', N'Kaya',   '05000000004', 'B-100004');
 GO
 
 INSERT INTO dbo.Vehicles (Plate, VehicleType, Brand, Model, ModelYear, SpeedLimitKmh, DriverId)
