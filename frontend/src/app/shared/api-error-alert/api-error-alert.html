@@ -3,6 +3,9 @@
     <strong>{{ action }}:</strong>
   }
   {{ message() }}
+  @for (detail of details(); track $index) {
+    <span class="detail">{{ detail }}</span>
+  }
   @if (unreachable()) {
     (<code>backend/FiloTakip.Api</code> klasöründe <code>dotnet run</code>)
   }

@@ -53,6 +53,87 @@ body {
   }
 }
 
+// Açılır pencere (tarayıcının kendi <dialog> elemanı): yeni araç ve sürücü pencereleri
+dialog.dialog {
+  width: min(480px, calc(100vw - 32px));
+  padding: 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.25);
+
+  &::backdrop {
+    background: rgb(0 0 0 / 0.4);
+  }
+
+  h2 {
+    margin: 0 0 16px;
+    font-size: 18px;
+  }
+
+  h3 {
+    margin: 20px 0 8px;
+    font-size: 15px;
+  }
+
+  .buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  app-api-error-alert {
+    margin-bottom: 12px;
+  }
+}
+
+// Form alanı: üstte etiket, altta kutu, hata varsa altında kırmızı açıklama.
+// İki alan yan yana: <div class="row"><label class="field">...</label><label class="field">...</label></div>
+.field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--muted);
+
+  input,
+  select {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .error {
+    color: var(--danger);
+    font-size: 12px;
+  }
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.btn.secondary {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.btn.danger {
+  border-color: var(--danger);
+  background: var(--surface);
+  color: var(--danger);
+}
+
 // Ortak tablo görünümü (araç ve alarm listeleri). Kullanım: <div class="table-wrap"><table>...</table></div>
 .table-wrap {
   overflow-x: auto; // dar ekranda tablo kendi içinde kaysın

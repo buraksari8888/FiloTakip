@@ -17,7 +17,7 @@ public class LocationsController(LocationService locations) : ControllerBase
         var location = await locations.CreateAsync(dto, cancellationToken);
         if (location is null)
         {
-            ModelState.AddModelError(nameof(dto.VehicleId), $"{dto.VehicleId} numaralı araç bulunamadı.");
+            ModelState.AddModelError(nameof(dto.VehicleId), $"{dto.VehicleId} numaralı aktif araç bulunamadı.");
             return ValidationProblem(ModelState);
         }
 

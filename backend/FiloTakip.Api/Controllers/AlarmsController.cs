@@ -49,6 +49,13 @@ public class AlarmsController(AlarmService alarms) : ControllerBase
         return found ? NoContent() : NotFound();
     }
 
+    // DELETE /api/alarms/5 -> alarmı kalıcı olarak siler
+    [HttpDelete("{id:long}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken) =>
+        await alarms.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
+
     // POST /api/alarms/read-all -> bütün alarmları okundu işaretle
     [HttpPost("read-all")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

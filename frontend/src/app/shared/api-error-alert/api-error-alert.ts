@@ -24,10 +24,27 @@ export class ApiErrorAlert {
     if (status === 404) {
       return 'İstenen kayıt bulunamadı.';
     }
+    if (status === 409) {
+      return 'Bu kayıt zaten var.';
+    }
     if (status >= 500) {
       return 'Sunucuda bir hata oluştu.';
     }
     return 'İstek geçersiz.';
+  });
+
+  // API'nin kendi açıklaması: doğrulama hataları ("Plaka geçersiz...") ya da çakışmada (409) başlık
+  protected readonly details = computed(() => {
+    const body = this.error().error;
+    if (body?.errors && typeof body.errors === 'object') {
+      return Object.values(body.errors as Record<string, unknown>)
+        .flat()
+        .filter((message): message is string => typeof message === 'string');
+    }
+    if (this.error().status === 409 && typeof body?.title === 'string') {
+      return [body.title];
+    }
+    return [];
   });
 
   // API'nin hata cevabındaki (ProblemDetails) iz numarası. Sorun bildirilirken bu numara verilirse

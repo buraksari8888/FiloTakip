@@ -16,3 +16,9 @@
   margin-top: 4px;
   opacity: 0.8;
 }
+
+// API'nin açıklamaları (ör. "Plaka geçersiz. Örnek: 34 ABC 123") her biri kendi satırında
+.detail {
+  display: block;
+  margin-top: 2px;
+}

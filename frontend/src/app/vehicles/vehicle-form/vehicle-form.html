@@ -1,0 +1,88 @@
+<dialog #dialog class="dialog" aria-labelledby="vehicle-form-title" (close)="closed.emit()">
+  <h2 id="vehicle-form-title">Yeni araç</h2>
+
+  @if (saveError(); as error) {
+    <app-api-error-alert [error]="error" action="Araç eklenemedi" />
+  }
+
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <div class="row">
+      <label class="field">
+        Plaka
+        <input formControlName="plate" placeholder="34 ABC 123" autocomplete="off" />
+        @if (invalid('plate')) {
+          <span class="error">Geçerli bir plaka yaz (ör. 34 ABC 123).</span>
+        }
+      </label>
+      <label class="field">
+        Tür
+        <select formControlName="vehicleType">
+          @for (type of types; track type) {
+            <option [ngValue]="type">{{ typeLabels[type] }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="row">
+      <label class="field">
+        Marka
+        <input formControlName="brand" list="brand-options" autocomplete="off" />
+        @if (invalid('brand')) {
+          <span class="error">Marka gerekli.</span>
+        }
+      </label>
+      <label class="field">
+        Model
+        <input formControlName="model" list="model-options" autocomplete="off" />
+        @if (invalid('model')) {
+          <span class="error">Model gerekli.</span>
+        }
+      </label>
+    </div>
+    <!-- Yazarken açılan öneri listeleri -->
+    <datalist id="brand-options">
+      @for (brand of brands(); track brand) {
+        <option [value]="brand"></option>
+      }
+    </datalist>
+    <datalist id="model-options">
+      @for (model of models(); track model) {
+        <option [value]="model"></option>
+      }
+    </datalist>
+
+    <div class="row">
+      <label class="field">
+        Model yılı
+        <input type="number" formControlName="modelYear" min="1990" [max]="thisYear + 1" />
+        @if (invalid('modelYear')) {
+          <span class="error">1990 ile {{ thisYear + 1 }} arası olmalı.</span>
+        }
+      </label>
+      <label class="field">
+        Araç hız sınırı (km/s)
+        <input type="number" formControlName="speedLimitKmh" min="10" max="200" />
+        @if (invalid('speedLimitKmh')) {
+          <span class="error">10 ile 200 arası olmalı.</span>
+        }
+      </label>
+    </div>
+
+    <label class="field">
+      Sürücü
+      <select formControlName="driverId">
+        <option [ngValue]="null">Sürücüsüz</option>
+        @for (d of drivers(); track d.driverId) {
+          <option [ngValue]="d.driverId">{{ driverLabel(d) }}</option>
+        }
+      </select>
+      <span>Parantezde aracı yazan sürücü seçilirse o araç sürücüsüz kalır.</span>
+    </label>
+
+    <div class="buttons">
+      <button type="button" class="btn secondary" (click)="close()">İptal</button>
+      <button type="submit" class="btn" [disabled]="saving()">{{ saving() ? 'Kaydediliyor…' : 'Ekle' }}</button>
+    </div>
+  </form>
+</dialog>

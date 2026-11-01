@@ -8,9 +8,11 @@ public class VehicleLastLocation
 {
     public int VehicleId { get; set; }
     public string Plate { get; set; } = "";
+    public string VehicleType { get; set; } = "";
     public string Brand { get; set; } = "";
     public string Model { get; set; } = "";
     public short SpeedLimitKmh { get; set; }
+    public int? DriverId { get; set; }
     public string? DriverName { get; set; }
 
     [Precision(9, 6)]

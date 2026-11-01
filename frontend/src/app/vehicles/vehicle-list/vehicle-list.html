@@ -1,15 +1,36 @@
-<h1>Araçlar</h1>
+<div class="header">
+  <h1>Araçlar</h1>
+  <button type="button" class="btn" (click)="adding.set(true)">+ Yeni araç</button>
+</div>
 
 @if (apiError(); as error) {
   <app-api-error-alert [error]="error" />
 }
 
+@if (actionError(); as failed) {
+  <app-api-error-alert [error]="failed.error" [action]="failed.action" />
+}
+
 @if (vehicles(); as list) {
-  <p class="summary">
-    {{ list.length }} araç
-    · <span [class.danger]="speedingCount() > 0">{{ speedingCount() }} hız ihlali</span>
-    · <span [class.warning]="lowFuelCount() > 0">{{ lowFuelCount() }} düşük yakıt</span>
-  </p>
+  <div class="toolbar">
+    <input
+      class="search"
+      type="search"
+      placeholder="Plaka, marka, model ya da sürücü ara"
+      aria-label="Araç ara"
+      [value]="query()"
+      (input)="query.set($any($event.target).value)"
+    />
+    <p class="summary">
+      @if (query().trim()) {
+        {{ filtered().length }} / {{ list.length }} araç
+      } @else {
+        {{ list.length }} araç
+      }
+      · <span [class.danger]="speedingCount() > 0">{{ speedingCount() }} hız ihlali</span>
+      · <span [class.warning]="lowFuelCount() > 0">{{ lowFuelCount() }} düşük yakıt</span>
+    </p>
+  </div>
 
   <div class="table-wrap">
     <table>
@@ -26,10 +47,13 @@
         </tr>
       </thead>
       <tbody>
-        @for (v of list; track v.vehicleId) {
+        @for (v of filtered(); track v.vehicleId) {
           <tr>
             <td class="plate">{{ v.plate }}</td>
-            <td>{{ v.brand }} {{ v.model }}</td>
+            <td>
+              {{ v.brand }} {{ v.model }}
+              <small class="type">{{ typeLabels[v.vehicleType] }}</small>
+            </td>
             <td>{{ v.driverName ?? '—' }}</td>
 
             @if (v.recordedAt) {
@@ -40,13 +64,24 @@
               <td class="num" [class.warning]="isLowFuel(v)">%{{ v.fuelPercent | number: '1.0-1' }}</td>
               <td>{{ v.ignitionOn ? 'Açık' : 'Kapalı' }}</td>
               <td>{{ v.recordedAt | date: 'dd.MM.yyyy HH:mm:ss' }}</td>
-              <td>
-                <a routerLink="/harita" [queryParams]="{ arac: v.vehicleId }">Haritada göster</a> ·
-                <a routerLink="/gecmis" [queryParams]="{ arac: v.vehicleId }">Geçmiş</a>
-              </td>
             } @else {
-              <td colspan="5" class="muted">Henüz konum gelmedi</td>
+              <td colspan="4" class="muted">Henüz konum gelmedi</td>
             }
+
+            <td class="actions">
+              @if (v.recordedAt) {
+                <a routerLink="/harita" [queryParams]="{ arac: v.vehicleId }">Haritada göster</a>
+                <a routerLink="/gecmis" [queryParams]="{ arac: v.vehicleId }">Geçmiş</a>
+              }
+              <button type="button" class="btn small secondary" (click)="driverFor.set(v)">Sürücü</button>
+              <button type="button" class="btn small danger" (click)="deactivate(v)">Sil</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8" class="muted">
+              {{ list.length === 0 ? 'Henüz araç yok.' : 'Aramaya uyan araç yok.' }}
+            </td>
           </tr>
         }
       </tbody>
@@ -54,4 +89,12 @@
   </div>
 } @else if (!apiError()) {
   <p class="muted">Yükleniyor…</p>
+}
+
+<!-- Pencereler: açıkken sayfaya eklenir, kapanınca kaldırılır (her açılışta boş form) -->
+@if (adding()) {
+  <app-vehicle-form (closed)="adding.set(false)" />
+}
+@if (driverFor(); as v) {
+  <app-driver-dialog [vehicle]="v" (closed)="driverFor.set(null)" />
 }

@@ -1,13 +1,16 @@
 import { LocationUpdate } from '../core/live-hub';
+import { VehicleType } from './vehicle-type';
 
 // API'deki VehicleLastLocationDto'nun TypeScript karşılığı (GET /api/vehicles/last-locations).
 // Henüz hiç konum göndermemiş araçlarda konum alanları null gelir.
 export interface VehicleLastLocation {
   vehicleId: number;
   plate: string;
+  vehicleType: VehicleType;
   brand: string;
   model: string;
   speedLimitKmh: number;
+  driverId: number | null;
   driverName: string | null;
   latitude: number | null;
   longitude: number | null;

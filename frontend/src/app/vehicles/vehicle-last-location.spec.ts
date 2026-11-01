@@ -10,9 +10,11 @@ import {
 const vehicle = (vehicleId: number, recordedAt: string | null): VehicleLastLocation => ({
   vehicleId,
   plate: `34 TEST ${vehicleId}`,
+  vehicleType: 'HafifTicari',
   brand: 'Ford',
   model: 'Transit',
   speedLimitKmh: 90,
+  driverId: null,
   driverName: null,
   latitude: recordedAt ? 41 : null,
   longitude: recordedAt ? 29 : null,

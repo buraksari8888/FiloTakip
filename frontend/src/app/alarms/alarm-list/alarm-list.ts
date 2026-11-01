@@ -71,6 +71,17 @@ export class AlarmList {
     });
   }
 
+  protected deleteAlarm(alarm: Alarm): void {
+    if (!confirm(`${alarm.plate} aracının bu alarmı kalıcı olarak silinsin mi?\n\n${alarm.message}`)) {
+      return;
+    }
+    this.actionError.set(null);
+    this.api.deleteAlarm(alarm.alarmId).subscribe({
+      next: () => this.reloadAll(),
+      error: (error: HttpErrorResponse) => this.actionError.set({ action: 'Alarm silinemedi', error }),
+    });
+  }
+
   // Hem bu listeyi hem üst menüdeki rozeti hemen güncelle
   private reloadAll(): void {
     this.reloadNow.next();

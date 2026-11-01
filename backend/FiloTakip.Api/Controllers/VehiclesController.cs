@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using FiloTakip.Api.Dtos;
+using FiloTakip.Api.Models;
 using FiloTakip.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,6 +32,60 @@ public class VehiclesController(VehicleService vehicles, LocationService locatio
             return NotFound();
 
         return vehicle;
+    }
+
+    // POST /api/vehicles -> yeni araç. Plaka pasife alınmış bir araçtaysa o araç yeniden açılır.
+    [HttpPost]
+    [ProducesResponseType<VehicleDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<VehicleDto>> Create(CreateVehicleDto dto, CancellationToken cancellationToken)
+    {
+        var plate = VehicleRules.NormalizePlate(dto.Plate);
+        if (plate is null)
+            ModelState.AddModelError(nameof(dto.Plate), "Plaka geçersiz. Örnek: 34 ABC 123");
+        if (!VehicleTypes.All.Contains(dto.VehicleType))
+            ModelState.AddModelError(nameof(dto.VehicleType), "Araç türü geçersiz.");
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var (result, vehicle) = await vehicles.CreateAsync(dto with { Plate = plate! }, cancellationToken);
+        if (result == VehicleChangeResult.PlateTaken)
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: $"{plate} plakalı bir araç zaten kayıtlı.");
+        if (result == VehicleChangeResult.DriverNotFound)
+        {
+            ModelState.AddModelError(nameof(dto.DriverId), "Seçilen sürücü bulunamadı.");
+            return ValidationProblem(ModelState);
+        }
+
+        return CreatedAtAction(nameof(GetById), new { id = vehicle!.VehicleId }, vehicle);
+    }
+
+    // DELETE /api/vehicles/5 -> aracı pasife alır: listeden kalkar, konumları ve alarmları silinmez
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Deactivate(int id, CancellationToken cancellationToken) =>
+        await vehicles.DeactivateAsync(id, cancellationToken) ? NoContent() : NotFound();
+
+    // PUT /api/vehicles/5/driver  { "driverId": 3 } -> araca sürücü atar (null: sürücüsüz).
+    // Sürücü başka bir araçtaysa oradan alınır.
+    [HttpPut("{id:int}/driver")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignDriver(int id, AssignDriverDto dto, CancellationToken cancellationToken)
+    {
+        var result = await vehicles.AssignDriverAsync(id, dto.DriverId, cancellationToken);
+        if (result == VehicleChangeResult.NotFound)
+            return NotFound();
+        if (result == VehicleChangeResult.DriverNotFound)
+        {
+            ModelState.AddModelError(nameof(dto.DriverId), "Seçilen sürücü bulunamadı.");
+            return ValidationProblem(ModelState);
+        }
+
+        return NoContent();
     }
 
     // GET /api/vehicles/5/locations?minutes=30 -> aracın son 30 dakikadaki konumları, eskiden yeniye (haritadaki iz)
