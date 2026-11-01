@@ -1,0 +1,96 @@
+<dialog #dialog class="dialog" aria-labelledby="driver-dialog-title" (close)="closed.emit()">
+  <h2 id="driver-dialog-title">{{ vehicle().plate }} · Sürücü</h2>
+
+  @if (error(); as failed) {
+    <app-api-error-alert [error]="failed.error" [action]="failed.action" />
+  }
+
+  @if (drivers() === null && !error()) {
+    <p>Yükleniyor…</p>
+  }
+
+  @if (currentDriver(); as current) {
+    <h3>Adı düzelt</h3>
+    <form [formGroup]="nameForm" (ngSubmit)="saveName()">
+      <div class="row">
+        <label class="field">
+          Ad
+          <input formControlName="firstName" autocomplete="off" />
+        </label>
+        <label class="field">
+          Soyad
+          <input formControlName="lastName" autocomplete="off" />
+        </label>
+      </div>
+      @if (nameForm.invalid && nameForm.touched) {
+        <p class="field"><span class="error">Ad ve soyad gerekli.</span></p>
+      }
+      <div class="buttons">
+        <button type="submit" class="btn" [disabled]="saving() || nameForm.pristine">Adı kaydet</button>
+      </div>
+    </form>
+  } @else if (drivers() !== null) {
+    <p>Bu aracın sürücüsü yok.</p>
+  }
+
+  @if (drivers() !== null) {
+    <h3>{{ currentDriver() ? 'Sürücüyü değiştir' : 'Sürücü ata' }}</h3>
+    <label class="field">
+      Yeni sürücü
+      <select (change)="choice.set($any($event.target).value)">
+        <option value="" disabled [selected]="choice() === ''">Seç</option>
+        @for (d of otherDrivers(); track d.driverId) {
+          <option [value]="d.driverId">{{ driverLabel(d) }}</option>
+        }
+        @if (currentDriver()) {
+          <option value="none">Sürücüsüz bırak</option>
+        }
+        <option value="new">+ Yeni sürücü ekle</option>
+      </select>
+      <span>Parantezde aracı yazan sürücü seçilirse o araç sürücüsüz kalır.</span>
+    </label>
+
+    @if (choice() === 'new') {
+      <form [formGroup]="newDriverForm" (ngSubmit)="saveAssignment()">
+        <div class="row">
+          <label class="field">
+            Ad
+            <input formControlName="firstName" autocomplete="off" />
+            @if (invalid('firstName')) {
+              <span class="error">Ad gerekli.</span>
+            }
+          </label>
+          <label class="field">
+            Soyad
+            <input formControlName="lastName" autocomplete="off" />
+            @if (invalid('lastName')) {
+              <span class="error">Soyad gerekli.</span>
+            }
+          </label>
+        </div>
+        <div class="row">
+          <label class="field">
+            Ehliyet no
+            <input formControlName="licenseNumber" autocomplete="off" />
+            @if (invalid('licenseNumber')) {
+              <span class="error">Ehliyet numarası gerekli.</span>
+            }
+          </label>
+          <label class="field">
+            Telefon (isteğe bağlı)
+            <input formControlName="phone" type="tel" autocomplete="off" />
+          </label>
+        </div>
+      </form>
+    }
+  }
+
+  <div class="buttons">
+    <button type="button" class="btn secondary" (click)="close()">Kapat</button>
+    @if (drivers() !== null) {
+      <button type="button" class="btn" [disabled]="saving() || choice() === ''" (click)="saveAssignment()">
+        {{ choice() === 'new' ? 'Ekle ve ata' : 'Sürücüyü ata' }}
+      </button>
+    }
+  </div>
+</dialog>

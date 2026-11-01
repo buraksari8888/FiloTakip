@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Service, signal } from '@angular/core';
-import { retry, startWith, switchMap, tap, timer } from 'rxjs';
+import { merge, retry, startWith, Subject, switchMap, tap, timer } from 'rxjs';
 import { LiveHub, RETRY_MS } from '../core/live-hub';
 import { VehicleApi } from './vehicle-api';
 import { applyLocation, VehicleLastLocation } from './vehicle-last-location';
@@ -12,15 +12,17 @@ export class LiveVehicles {
   private readonly api = inject(VehicleApi);
   private readonly hub = inject(LiveHub);
   private readonly list = signal<VehicleLastLocation[] | null>(null); // null = henüz ilk cevap gelmedi
+  private readonly refreshNow = new Subject<void>();
 
   readonly vehicles = this.list.asReadonly();
   // Son isteğin hatası (başarılıysa null). Sayfalar bunu uyarı kutusunda gösterir.
   readonly apiError = signal<HttpErrorResponse | null>(null);
 
   constructor() {
-    // Listenin tamamı sadece açılışta ve canlı bağlantı koptuktan sonra yeniden kurulunca çekilir
-    // (kopukken gelen konumlar kaçmış olabilir). İstek başarısız olursa 5 saniyede bir yeniden denenir.
-    this.hub.reconnected$
+    // Listenin tamamı şu durumlarda çekilir: açılışta, canlı bağlantı koptuktan sonra yeniden kurulunca
+    // (kopukken gelen konumlar kaçmış olabilir), API "araçlar değişti" deyince ve refresh() çağrılınca.
+    // İstek başarısız olursa 5 saniyede bir yeniden denenir.
+    merge(this.hub.reconnected$, this.hub.vehiclesChanged$, this.refreshNow)
       .pipe(
         startWith(undefined),
         switchMap(() =>
@@ -41,5 +43,10 @@ export class LiveVehicles {
     this.hub.locationAdded$.subscribe((location) =>
       this.list.update((list) => list && applyLocation(list, location)),
     );
+  }
+
+  // Bu sekmede araç eklenince/çıkarılınca listeyi hemen yenilemek için (canlı bağlantı o an kopuk olsa bile)
+  refresh(): void {
+    this.refreshNow.next();
   }
 }

@@ -28,12 +28,15 @@ export const RETRY_MS = 5000;
 export class LiveHub {
   private readonly locationAdded = new Subject<LocationUpdate>();
   private readonly alarmsChanged = new Subject<void>();
+  private readonly vehiclesChanged = new Subject<void>();
   private readonly reconnected = new Subject<void>();
   private hadProblem = false; // bağlantı koptu mu ya da hiç kurulamadı mı?
 
   readonly status = signal<LiveStatus>('connecting');
   readonly locationAdded$ = this.locationAdded.asObservable();
   readonly alarmsChanged$ = this.alarmsChanged.asObservable();
+  // Araç eklendi, pasife alındı ya da sürücüsü değişti (başka bir sekmede de olabilir)
+  readonly vehiclesChanged$ = this.vehiclesChanged.asObservable();
   // Bağlantı koptuktan (ya da ilk denemede kurulamadıktan) sonra kurulunca. Aradaki mesajlar kaçmış olabilir,
   // bu yüzden veriyi gösteren servisler bunu duyunca listelerini baştan çeker.
   readonly reconnected$ = this.reconnected.asObservable();
@@ -50,6 +53,7 @@ export class LiveHub {
     // Mesaj adları API'deki ILiveClient arayüzündeki metotlarla aynı
     this.connection.on('LocationAdded', (location: LocationUpdate) => this.locationAdded.next(location));
     this.connection.on('AlarmsChanged', () => this.alarmsChanged.next());
+    this.connection.on('VehiclesChanged', () => this.vehiclesChanged.next());
     this.connection.onreconnecting(() => this.lost());
     this.connection.onreconnected(() => this.connected());
     void this.start();

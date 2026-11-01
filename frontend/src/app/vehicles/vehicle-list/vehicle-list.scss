@@ -1,11 +1,51 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 h1 {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 22px;
 }
 
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+.search {
+  width: min(360px, 100%);
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
 .summary {
-  margin: 0 0 16px;
+  margin: 0;
   color: var(--muted);
+}
+
+.type {
+  display: block;
+}
+
+// Satırdaki bağlantı ve düğmeler yan yana, sığmazsa alt satıra
+.actions {
+  white-space: nowrap;
+
+  a,
+  button {
+    margin-right: 8px;
+  }
 }
 
 .num {

@@ -33,6 +33,11 @@ export class AlarmApi {
     return this.http.post<void>(`${this.baseUrl}/${alarmId}/read`, null);
   }
 
+  // Alarmı kalıcı olarak siler
+  deleteAlarm(alarmId: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${alarmId}`);
+  }
+
   markAllAsRead(): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/read-all`, null);
   }

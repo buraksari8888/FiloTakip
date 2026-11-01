@@ -211,6 +211,19 @@ public class AlarmService(
     public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken) =>
         db.Alarms.CountAsync(a => !a.IsRead, cancellationToken);
 
+    // Alarmı kalıcı olarak siler. Alarm bulunamazsa false döner.
+    public async Task<bool> DeleteAsync(long alarmId, CancellationToken cancellationToken)
+    {
+        // Kaydı belleğe almadan, tek bir DELETE sorgusuyla. Kaç satırın silindiğini döner.
+        var count = await db.Alarms.Where(a => a.AlarmId == alarmId).ExecuteDeleteAsync(cancellationToken);
+        if (count == 0)
+            return false;
+
+        logger.LogInformation("Alarm #{AlarmId} silindi", alarmId);
+        await live.Clients.All.AlarmsChanged();
+        return true;
+    }
+
     // Alarm bulunamazsa false döner
     public async Task<bool> MarkAsReadAsync(long alarmId, CancellationToken cancellationToken)
     {

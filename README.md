@@ -55,6 +55,7 @@ sqlcmd -S localhost -E -C -i 07_road_segments.sql
 > sqlcmd -S localhost -E -C -i 05_geofences.sql    # bölgeler ve bölge alarmları
 > sqlcmd -S localhost -E -C -i 06_road_speed_limits.sql   # yola göre hız sınırı (tablo ve sütun)
 > sqlcmd -S localhost -E -C -i 07_road_segments.sql       # yol parçaları ve sınırları
+> sqlcmd -S localhost -E -C -i 08_vehicle_management.sql  # araç türü
 > ```
 
 ### 2. API
@@ -84,8 +85,24 @@ Arayüz: <http://localhost:4200>
 | | `/harita?alarm=46` | Alarmın olduğu yeri kırmızı halkayla gösterir (aracın şu anki yeri değil) |
 | Geçmiş rota | `/gecmis` | Seçilen aracın seçilen gün ve saat aralığındaki (en fazla 24 saat) yolu haritada baştan oynatılır: oynat/duraklat, hız (1x / 4x / 16x; 1x = 1 dakikalık yol 1 saniyede), sürüklenebilir ilerleme çubuğu. Güzergâhın tamamı gri, gidilmiş kısmı mavi çizilir; o anki hız, yakıt ve kontak yazar. 2 dakikadan uzun veri boşlukları (cihaz kapalı) atlanır. En az 1 dakika durduğu yerler mavi "P", o aralıktaki alarmlar kırmızı halka; tıklanınca bilgisi açılır ve oynatma o ana gider |
 | | `/gecmis?arac=3` | O araç seçili açılır |
-| Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster" ve "Geçmiş" |
-| Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme; her satırda "Haritada göster" |
+| Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster", "Geçmiş", "Sürücü" ve "Sil". Arama kutusu plaka, marka, model, tür ve sürücü adında arar: büyük/küçük harf, Türkçe harfler ve boşluklar önemsiz ("yilmaz" "Yılmaz"ı, "34abc" "34 ABC 123"ü bulur), her kelime bir alanda geçmeli ("ford ahmet"). Ayrıntılar aşağıda (Araç yönetimi) |
+| Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme, silme; her satırda "Haritada göster" |
+
+#### Araç yönetimi
+
+- **Yeni araç:** plaka, tür (Otomobil / Hafif ticari / Kamyon-Tır / Otobüs), marka, model, model yılı, araç hız
+  sınırı ve isteğe bağlı sürücü. Tür sabit listeden seçilir çünkü kuralları belirler (seçilince hız sınırı o türün
+  önerisiyle dolar: 120 / 90 / 80 / 90, değiştirilebilir). Marka ve model elle yazılır; yazarken filodaki markalar
+  ve o markanın modelleri öneri olarak çıkar. Plaka "34abc123" gibi de yazılabilir, "34 ABC 123" olarak kaydedilir
+  (il kodu 01-81, 1-3 harf, 2-4 rakam).
+- **Sil:** araç pasife alınır. Listeden, haritadan ve simülatörden kalkar, API ondan konum kabul etmez; ama konumları
+  ve alarmları silinmez (raporlar, geçmiş rota). Sürücüsü boşa çıkar. Aynı plaka tekrar eklenirse araç yeni
+  bilgilerle ve eski geçmişiyle geri açılır. Çalışan simülatör o aracı göndermeye devam ederse hata yazar; yeniden başlat.
+- **Sürücü:** iki ayrı işlem. *Adı düzelt*: sürücünün adındaki yazım hatası (aynı kişi, kaydı güncellenir).
+  *Sürücüyü değiştir*: araç başka birine verildi; mevcut bir sürücü seçilir, yeni sürücü eklenir (ad, soyad,
+  ehliyet no, telefon) ya da araç sürücüsüz bırakılır. Bir sürücü aynı anda tek araç kullanır: başka araçtaki
+  sürücü seçilirse o araç sürücüsüz kalır.
+- Değişiklikler canlı bağlantıyla diğer açık sekmelere de anında yansır.
 
 ### 4. Simülatör
 
@@ -257,13 +274,21 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `GET /api/vehicles/last-locations` | Her aracın son konumu (harita ve liste bunu kullanır) |
 | `GET /api/vehicles/{id}/locations?minutes=30` | Aracın son X dakikadaki konumları, eskiden yeniye (haritadaki iz; `minutes` 1–1440) |
 | `GET /api/vehicles/{id}/history?from=...&to=...` | Aracın iki an arasındaki konumları, eskiden yeniye (geçmiş rota oynatma). `from` ve `to` saat dilimli yazılır (ör. `2026-10-31T06:00:00Z`); ikisi de zorunlu, aralık en fazla 24 saat, yoksa 400 |
-| `POST /api/locations` | Yeni konum kaydı (simülatör bunu kullanır), gerekirse alarm üretir |
+| `POST /api/vehicles` | Yeni araç (`plate`, `vehicleType`, `brand`, `model`, `modelYear`, `speedLimitKmh`, `driverId`). Plaka geçersizse 400, aktif bir araçta kayıtlıysa 409; pasif bir araçtaysa o araç yeniden açılır |
+| `DELETE /api/vehicles/{id}` | Aracı pasife alır (geçmişi silinmez) |
+| `PUT /api/vehicles/{id}/driver` | Araca sürücü atar (`{ "driverId": 3 }`, `null`: sürücüsüz); sürücü başka araçtaysa oradan alınır |
+| `GET /api/drivers` | Aktif sürücüler (şu an kullandıkları araçla) |
+| `GET /api/drivers/{id}` | Tek sürücü |
+| `POST /api/drivers` | Yeni sürücü (ad, soyad, telefon, ehliyet no); ehliyet no başka sürücüdeyse 409 |
+| `PUT /api/drivers/{id}` | Sürücünün adını düzeltir (`firstName`, `lastName`) |
+| `POST /api/locations` | Yeni konum kaydı (simülatör bunu kullanır), gerekirse alarm üretir. Araç yoksa ya da pasifse 400 |
 | `GET /api/locations/{id}` | Tek konum kaydı |
 | `GET /api/alarms?unreadOnly=true&take=50` | En yeni alarmlar (en fazla 200). İsteğe bağlı süzgeçler: `vehicleId`, `from`, `to` (alarmın oluştuğu an) |
 | `GET /api/alarms/{id}` | Tek alarm (konumuyla birlikte) |
 | `GET /api/alarms/unread-count` | Okunmamış alarm sayısı |
 | `POST /api/alarms/{id}/read` | Alarmı okundu işaretler |
 | `POST /api/alarms/read-all` | Bütün alarmları okundu işaretler |
+| `DELETE /api/alarms/{id}` | Alarmı kalıcı olarak siler |
 | `GET /api/geofences` | Aktif bölgeler (merkez, yarıçap, girişte/çıkışta alarm) |
 | `/hubs/live` | Canlı bildirim kanalı (SignalR, WebSocket), bkz. [Canlı güncelleme](#canlı-güncelleme-signalr) |
 
@@ -339,6 +364,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `vehicles/` | Araç modeli, API servisi, canlı veri, araç listesi sayfası |
 | `alarms/` | Alarm modeli, API servisi, okunmamış sayısı, alarm listesi sayfası |
 | `geofences/` | Bölge modeli ve API servisi (bölgeler haritada çizilir) |
+| `drivers/` | Sürücü modeli ve API servisi (sürücü penceresi `vehicles/driver-dialog/` içinde) |
 | `map/` | Leaflet kullanan sayfalar (ayrı dosyalarda, sadece açılınca yüklenir): canlı harita (`vehicle-map/`), geçmiş rota oynatma (`route-playback/`); ortak harita parçaları `map-helpers.ts` |
 | `core/` | Bütün uygulamanın paylaştığı tekil servisler (API'ye canlı bağlantı: `LiveHub`) |
 | `shared/` | Birden fazla sayfanın kullandığı parçalar (hataya göre mesaj gösteren API hata kutusu) |
@@ -370,11 +396,12 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `05_geofences.sql` | Var olan veritabanına bölgeler tablosunu, örnek bölgeleri ve bölge alarm türlerini ekler (veriyi silmeden) |
 | `06_road_speed_limits.sql` | Var olan veritabanına yol parçaları tablosunu ve konumlara yol sınırı sütununu ekler (veriyi silmeden) |
 | `07_road_segments.sql` | Yol parçaları ve hız sınırları (`build_routes.py` oluşturur, elle değiştirilmez) |
+| `08_vehicle_management.sql` | Var olan veritabanına araç türü sütununu ekler, örnek araçların türünü doldurur (veriyi silmeden) |
 
 ## Tablolar
 
-- **Drivers**: sürücüler
-- **Vehicles**: araçlar (plaka, hız sınırı, atanmış sürücü)
+- **Drivers**: sürücüler (ad, soyad, telefon, ehliyet no)
+- **Vehicles**: araçlar (plaka, tür, marka, model, hız sınırı, atanmış sürücü; silinen araç pasif olur)
 - **LocationRecords**: araçlardan gelen konum / hız / yakıt kayıtları (ve API'nin bulduğu yol sınırı)
 - **Alarms**: hız ihlali, düşük yakıt gibi uyarılar
 - **Geofences**: bölgeler (merkez, yarıçap, girişte/çıkışta alarm)

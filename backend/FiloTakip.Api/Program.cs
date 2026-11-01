@@ -17,6 +17,7 @@ builder.Services.AddScoped<VehicleService>();
 builder.Services.AddScoped<LocationService>();
 builder.Services.AddScoped<AlarmService>();
 builder.Services.AddScoped<GeofenceService>();
+builder.Services.AddScoped<DriverService>();
 builder.Services.AddScoped<RoadSpeedLimitService>();
 
 // Uygulamanın belleğinde önbellek (yol parçaları her konumda veritabanından okunmasın diye)

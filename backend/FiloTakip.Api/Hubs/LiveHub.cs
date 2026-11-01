@@ -19,4 +19,7 @@ public interface ILiveClient
 
     // Alarmlar değişti (yeni alarm üretildi ya da okundu işaretlendi): rozet ve alarm listesi yeniden çekilir
     Task AlarmsChanged();
+
+    // Araçlar değişti (araç eklendi, pasife alındı, sürücüsü ya da sürücünün adı değişti): araç listesi yeniden çekilir
+    Task VehiclesChanged();
 }

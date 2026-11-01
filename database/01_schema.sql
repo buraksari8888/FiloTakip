@@ -39,6 +39,9 @@ CREATE TABLE dbo.Vehicles
 (
     VehicleId     INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Vehicles PRIMARY KEY,
     Plate         VARCHAR(15)   NOT NULL CONSTRAINT UQ_Vehicles_Plate UNIQUE,
+    -- Araç türü: hız sınırı gibi kuralları belirler, bu yüzden serbest yazı değil sabit liste
+    VehicleType   VARCHAR(20)   NOT NULL CONSTRAINT DF_Vehicles_VehicleType DEFAULT ('Otomobil')
+                                         CONSTRAINT CK_Vehicles_VehicleType CHECK (VehicleType IN ('Otomobil', 'HafifTicari', 'Kamyon', 'Otobus')),
     Brand         NVARCHAR(50)  NOT NULL,
     Model         NVARCHAR(50)  NOT NULL,
     ModelYear     SMALLINT      NOT NULL CONSTRAINT CK_Vehicles_ModelYear CHECK (ModelYear BETWEEN 1990 AND 2100),
@@ -133,9 +136,11 @@ AS
 SELECT
     v.VehicleId,
     v.Plate,
+    v.VehicleType,
     v.Brand,
     v.Model,
     v.SpeedLimitKmh,
+    v.DriverId,
     d.FirstName + N' ' + d.LastName AS DriverName,
     l.Latitude,
     l.Longitude,

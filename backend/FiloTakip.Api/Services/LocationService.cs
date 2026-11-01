@@ -21,13 +21,13 @@ public class LocationService(
         // Olmayan bir araca konum yazılmasın (veritabanındaki FOREIGN KEY de engeller,
         // ama burada kontrol edersek kullanıcıya anlaşılır bir hata verebiliriz)
         var vehicle = await db.Vehicles
-            .Where(v => v.VehicleId == dto.VehicleId)
+            .Where(v => v.VehicleId == dto.VehicleId && v.IsActive)
             .Select(v => new { v.Plate, v.SpeedLimitKmh })
             .FirstOrDefaultAsync(cancellationToken);
         if (vehicle is null)
         {
-            // Uyarı: genelde cihaz yanlış ayarlanmış ya da araç sistemden silinmiş demektir
-            logger.LogWarning("Konum reddedildi: {VehicleId} numaralı araç yok", dto.VehicleId);
+            // Uyarı: genelde cihaz yanlış ayarlanmış ya da araç sistemden çıkarılmış (pasife alınmış) demektir
+            logger.LogWarning("Konum reddedildi: {VehicleId} numaralı aktif araç yok", dto.VehicleId);
             return null;
         }
 
