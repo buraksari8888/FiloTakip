@@ -103,8 +103,9 @@ Arayüz varsayılan olarak koyu temada açılır; üst menünün sağındaki ☀
   ve alarmları silinmez (raporlar, geçmiş rota). Sürücüsü boşa çıkar. Aynı plaka tekrar eklenirse araç yeni
   bilgilerle ve eski geçmişiyle geri açılır. Çalışan simülatör o aracı göndermeye devam ederse hata yazar; yeniden başlat.
 - **Sürücü:** iki ayrı işlem. *Adı düzelt*: sürücünün adındaki yazım hatası (aynı kişi, kaydı güncellenir).
-  *Sürücüyü değiştir*: araç başka birine verildi; mevcut bir sürücü seçilir, yeni sürücü eklenir (ad, soyad,
-  ehliyet no, telefon) ya da araç sürücüsüz bırakılır. Bir sürücü aynı anda tek araç kullanır: başka araçtaki
+  *Başka sürücüye ver*: araç başka birine verildi; mevcut bir sürücü seçilir ya da yeni sürücü eklenir (ad, soyad,
+  ehliyet no, telefon). *Araçtan çıkar*: sürücü işten ayrıldı, kiralama süresi doldu…; onay sorulur, araç
+  sürücüsüz kalır, sürücünün kaydı silinmez (sonra başka araca atanabilir). Bir sürücü aynı anda tek araç kullanır: başka araçtaki
   sürücü seçilirse o araç sürücüsüz kalır.
 - Değişiklikler canlı bağlantıyla diğer açık sekmelere de anında yansır.
 - Aynı anda gelen istekler (iki kullanıcı aynı plakayı ya da ehliyet numarasını aynı anda ekler, aynı sürücüyü aynı anda
