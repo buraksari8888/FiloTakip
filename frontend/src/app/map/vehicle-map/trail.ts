@@ -68,7 +68,7 @@ export function isBreak(a: LocationUpdate, b: LocationUpdate): boolean {
 }
 
 // İki konum arası kuş uçuşu mesafe (haversine formülü: dünyayı küre kabul eder)
-function distanceKm(a: LocationUpdate, b: LocationUpdate): number {
+export function distanceKm(a: LocationUpdate, b: LocationUpdate): number {
   const toRad = (degrees: number) => (degrees * Math.PI) / 180;
   const dLat = toRad(b.latitude - a.latitude);
   const dLon = toRad(b.longitude - a.longitude);
