@@ -15,6 +15,15 @@ IDLE_CHANCE = 0.03          # durakta motoru çalıştırıp uzun bekleme ihtima
 # Adım sayısıyla veriliyor çünkü API süreyi kayıtların saatine (gerçek saat) göre ölçer, --speedup bunu kısaltmaz.
 IDLE_TICKS = (110, 160)
 
+# Hız: şoför sınıra yakın gider (sınırın %85-100'ü). Ara sıra sınırı aşar (hız ihlali senaryosu).
+CRUISE_FACTOR = (0.85, 1.0)
+SPEEDING_CHANCE = 0.01      # her adımda hız yapmaya başlama ihtimali (%1: 3 saniyelik aralıkla ~5 dakikada bir)
+SPEEDING_TICKS = (5, 15)    # hız yapma kaç adım sürsün
+SPEEDING_OVER_KMH = (12, 30)  # sınırın kaç km/s üstüne çıksın (API 5 km/s'e kadar tolerans tanır)
+ACCELERATION_KMH = 10       # bir adımda en fazla bu kadar hızlanır
+BRAKING_KMH = 20            # bir adımda en fazla bu kadar yavaşlar
+LOOKAHEAD_KM = 0.25         # şoför ileriyi görür: 250 metre içinde sınır düşüyorsa şimdiden yavaşlar
+
 
 def distance_km(lat1, lon1, lat2, lon2):
     """İki koordinat arasındaki mesafe (Haversine formülü, Dünya'yı küre kabul eder)."""
@@ -32,10 +41,10 @@ class VehicleSimulator:
     def __init__(self, vehicle, route):
         self.vehicle_id = vehicle["vehicleId"]
         self.plate = vehicle["plate"]
-        self.speed_limit = vehicle["speedLimitKmh"]
-        self.max_speed = self.speed_limit + 25  # ara sıra sınırı aşsın
+        self.vehicle_limit = vehicle["speedLimitKmh"]  # aracın kendi sınırı (ör. kamyon 80)
         self.route = route["points"]            # yol üzerindeki noktalar
         self.stops = set(route["stops"])        # durak olan noktaların sırası
+        self.road_limits = route["limits"]      # road_limits[i]: route[i] ile route[i + 1] arasındaki yolun sınırı
 
         # Rotanın rastgele bir noktasından, rastgele bir yönde yola çık
         # (her çalıştırmada araçlar farklı yerlerde olsun)
@@ -45,6 +54,9 @@ class VehicleSimulator:
         self._next_target()                      # gidilen nokta: bir sonraki (uçtaysak yön kendiliğinden döner)
 
         self.speed = 0.0
+        self.cruise_factor = random.uniform(*CRUISE_FACTOR)
+        self.speeding_ticks = 0                 # hız ihlali senaryosu: kaç adım daha sınırın üstünde gidecek
+        self.speeding_over = 0.0                # o sırada sınırın kaç km/s üstüne çıkıyor
         self.fuel = random.uniform(40, 95)
         self.stop_ticks = 0                     # kaç adım daha duracak
         self.theft_ticks = 0                    # hırsızlık senaryosu: kaç adım daha depodan yakıt çekilecek
@@ -68,9 +80,7 @@ class VehicleSimulator:
             return
 
         self.ignition_on = True                 # yola çıkarken kontak açılır
-
-        # Hız: biraz rastgele değişsin, 5 ile max_speed arasında kalsın
-        self.speed = min(max(self.speed + random.uniform(-8, 12), 5.0), self.max_speed)
+        self._update_speed()
 
         # Mesafe = hız x süre  (km/s x saat)
         remaining_km = self.speed * seconds / 3600
@@ -103,6 +113,45 @@ class VehicleSimulator:
                 elif scenario < THEFT_CHANCE + IDLE_CHANCE:
                     self._start_long_idle()
                 break
+
+    @property
+    def speed_limit(self):
+        """Şu an geçerli sınır: bulunduğu yolun sınırı ile aracın kendi sınırından küçük olanı (API'deki gibi)."""
+        return min(self.road_limits[self._segment_index()], self.vehicle_limit)
+
+    def _segment_index(self):
+        """Araç hangi yol parçasında: ileri giderken hedef noktadan bir önceki, geri giderken hedef noktanın parçası."""
+        return self.target_index - 1 if self.direction == 1 else self.target_index
+
+    def _upcoming_limit(self):
+        """Önümüzdeki LOOKAHEAD_KM içindeki en düşük sınır (şoför tabelayı görüp şimdiden yavaşlasın)."""
+        limit = self.speed_limit
+        lat, lon = self.lat, self.lon
+        index, seen_km = self.target_index, 0.0
+        while seen_km < LOOKAHEAD_KM:
+            next_index = index + self.direction
+            if not 0 <= next_index < len(self.route):
+                break                           # rotanın sonu
+            seen_km += distance_km(lat, lon, *self.route[index])
+            lat, lon = self.route[index]
+            limit = min(limit, self.road_limits[min(index, next_index)])
+            index = next_index
+        return min(limit, self.vehicle_limit)
+
+    def _update_speed(self):
+        """Hızı hedef hıza doğru değiştirir: hedef, sınıra göre (ara sıra sınırın üstü)."""
+        if self.speeding_ticks > 0:
+            self.speeding_ticks -= 1
+        elif random.random() < SPEEDING_CHANCE:
+            self.speeding_ticks = random.randint(*SPEEDING_TICKS)
+            self.speeding_over = random.uniform(*SPEEDING_OVER_KMH)
+
+        if self.speeding_ticks > 0:
+            target = self.speed_limit + self.speeding_over
+        else:
+            target = self._upcoming_limit() * self.cruise_factor
+        change = max(min(target - self.speed, ACCELERATION_KMH), -BRAKING_KMH)
+        self.speed = max(self.speed + change + random.uniform(-2, 2), 5.0)
 
     def _start_theft(self):
         """Hırsızlık senaryosu: araç park halinde, kontak kapalı; 2-3 adım boyunca depodan yakıt çekilir.

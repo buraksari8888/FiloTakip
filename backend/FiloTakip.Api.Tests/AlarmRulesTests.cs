@@ -81,12 +81,45 @@ public class AlarmRulesTests
         Assert.Equal(expected, result);
     }
 
-    [Theory]
-    [InlineData(93.5, "Hız sınırı aşıldı: 93,5 km/s (sınır 90)")]   // Türkçe ondalık virgül
-    [InlineData(104, "Hız sınırı aşıldı: 104 km/s (sınır 90)")]     // tam sayıda ",0" yazılmaz
-    public void SpeedViolationMessage_IsTurkishFormatted(double speedKmh, string expected)
+    [Fact]
+    public void ShouldCreateSpeedAlarm_SameSpeedButLimitDropped_ReturnsTrue()
     {
-        Assert.Equal(expected, AlarmRules.SpeedViolationMessage(Limit, (decimal)speedKmh));
+        // 90'lık yolda 80 ile gidiyordu, aynı hızla 50'lik yola girdi: yeni bir ihlal
+        var result = AlarmRules.ShouldCreateSpeedAlarm(
+            50, previousSpeedKmh: 80, currentSpeedKmh: 80, lastSpeedAlarmAt: null, Now, previousSpeedLimitKmh: 90);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void ShouldCreateSpeedAlarm_ViolationContinuesOnNewRoad_ReturnsFalse()
+    {
+        // 50'lik yolda 80 ile gidiyordu (ihlal), 70'lik yola geçti ve hâlâ hızlı: aynı ihlal sürüyor
+        var result = AlarmRules.ShouldCreateSpeedAlarm(
+            70, previousSpeedKmh: 80, currentSpeedKmh: 80, lastSpeedAlarmAt: null, Now, previousSpeedLimitKmh: 50);
+
+        Assert.False(result);
+    }
+
+    // ---------- Geçerli sınır: yol sınırı ile araç sınırının küçüğü ----------
+
+    [Theory]
+    [InlineData(90, 50, 50)]     // şehir içi yol: yolun sınırı geçerli
+    [InlineData(80, 120, 80)]    // otoyolda kamyon: aracın kendi sınırı geçerli
+    [InlineData(90, null, 90)]   // bilinen bir yolda değil: aracın sınırı
+    public void EffectiveSpeedLimit_TakesSmaller(short vehicleLimit, int? roadLimit, short expected)
+    {
+        Assert.Equal(expected, AlarmRules.EffectiveSpeedLimit(vehicleLimit, (short?)roadLimit));
+    }
+
+    [Theory]
+    [InlineData(93.5, null, "Hız sınırı aşıldı: 93,5 km/s (araç sınırı 90)")]   // Türkçe ondalık virgül
+    [InlineData(104, 120, "Hız sınırı aşıldı: 104 km/s (araç sınırı 90)")]      // tam sayıda ",0" yazılmaz
+    [InlineData(62, 50, "Hız sınırı aşıldı: 62 km/s (yol sınırı 50)")]
+    [InlineData(97, 90, "Hız sınırı aşıldı: 97 km/s (yol sınırı 90)")]          // eşitse yol sınırı denir
+    public void SpeedViolationMessage_NamesTheLimit(double speedKmh, int? roadLimit, string expected)
+    {
+        Assert.Equal(expected, AlarmRules.SpeedViolationMessage(Limit, (short?)roadLimit, (decimal)speedKmh));
     }
 
     // ---------- Düşük yakıt (eşik %15) ----------

@@ -16,24 +16,33 @@ public static class AlarmRules
 
     private static readonly CultureInfo Turkish = CultureInfo.GetCultureInfo("tr-TR");
 
+    // Araç için geçerli sınır: bulunduğu yolun sınırı ile aracın kendi sınırından (ör. kamyon 80) küçük olanı.
+    // Yol bilinmiyorsa (roadSpeedLimitKmh null) aracın kendi sınırı.
+    public static short EffectiveSpeedLimit(short vehicleSpeedLimitKmh, short? roadSpeedLimitKmh) =>
+        roadSpeedLimitKmh is short road && road < vehicleSpeedLimitKmh ? road : vehicleSpeedLimitKmh;
+
     // Hız, toleransla birlikte sınırın üstünde mi?
     public static bool IsSpeeding(short speedLimitKmh, decimal speedKmh) =>
         speedKmh > speedLimitKmh + SpeedToleranceKmh;
 
-    // Yeni bir hız alarmı üretilmeli mi?
+    // Yeni bir hız alarmı üretilmeli mi? speedLimitKmh: şimdiki geçerli sınır.
+    // previousSpeedLimitKmh: önceki konumdaki geçerli sınır (araç arada başka sınırlı bir yola geçmiş olabilir);
+    // verilmezse şimdiki sınırla aynı sayılır.
     public static bool ShouldCreateSpeedAlarm(
         short speedLimitKmh,
         decimal? previousSpeedKmh,
         decimal currentSpeedKmh,
         DateTime? lastSpeedAlarmAt,
-        DateTime now)
+        DateTime now,
+        short? previousSpeedLimitKmh = null)
     {
         if (!IsSpeeding(speedLimitKmh, currentSpeedKmh))
             return false;
 
         // İhlal zaten sürüyorsa (önceki konumda da hızlıydı) yeni alarm yok:
-        // araç 5 dakika boyunca hızlı giderse 100 değil, 1 alarm oluşsun
-        if (previousSpeedKmh is decimal previous && IsSpeeding(speedLimitKmh, previous))
+        // araç 5 dakika boyunca hızlı giderse 100 değil, 1 alarm oluşsun.
+        // Hız aynı kalıp sınır düştüyse (90'lık yoldan 50'lik yola 80 ile girdi) bu yeni bir ihlal.
+        if (previousSpeedKmh is decimal previous && IsSpeeding(previousSpeedLimitKmh ?? speedLimitKmh, previous))
             return false;
 
         // Son 5 dakikada bu araca zaten hız alarmı verildiyse yeni alarm yok
@@ -43,8 +52,13 @@ public static class AlarmRules
         return true;
     }
 
-    public static string SpeedViolationMessage(short speedLimitKmh, decimal speedKmh) =>
-        $"Hız sınırı aşıldı: {speedKmh.ToString("0.#", Turkish)} km/s (sınır {speedLimitKmh})";
+    // Mesaj hangi sınırın aşıldığını da söyler: "(yol sınırı 50)" ya da "(araç sınırı 80)"
+    public static string SpeedViolationMessage(short vehicleSpeedLimitKmh, short? roadSpeedLimitKmh, decimal speedKmh)
+    {
+        var limit = EffectiveSpeedLimit(vehicleSpeedLimitKmh, roadSpeedLimitKmh);
+        var source = roadSpeedLimitKmh == limit ? "yol" : "araç";
+        return $"Hız sınırı aşıldı: {speedKmh.ToString("0.#", Turkish)} km/s ({source} sınırı {limit})";
+    }
 
     // Yakıt bu yüzdenin altına düşünce alarm (frontend'deki LOW_FUEL_PERCENT ile aynı)
     public const decimal LowFuelPercent = 15;

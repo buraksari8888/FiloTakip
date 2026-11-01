@@ -11,6 +11,7 @@ namespace FiloTakip.Api.Services;
 public class LocationService(
     FiloTakipDbContext db,
     AlarmService alarms,
+    RoadSpeedLimitService roads,
     IHubContext<LiveHub, ILiveClient> live,
     ILogger<LocationService> logger)
 {
@@ -48,7 +49,9 @@ public class LocationService(
             SpeedKmh = dto.SpeedKmh,
             FuelPercent = dto.FuelPercent,
             IgnitionOn = dto.IgnitionOn,
-            RecordedAt = dto.RecordedAt?.ToUniversalTime() ?? DateTime.UtcNow
+            RecordedAt = dto.RecordedAt?.ToUniversalTime() ?? DateTime.UtcNow,
+            // Cihaz yolun sınırını bilmez; konumdan biz buluyoruz (hız alarmı ve arayüz kullanır)
+            RoadSpeedLimitKmh = await roads.GetSpeedLimitAsync(dto.Latitude, dto.Longitude, cancellationToken)
         };
 
         db.LocationRecords.Add(record);   // henüz veritabanına gitmedi, sadece "eklenecek" diye işaretlendi
@@ -99,5 +102,6 @@ public class LocationService(
     }
 
     private static LocationDto ToDto(LocationRecord r) =>
-        new(r.LocationId, r.VehicleId, r.Latitude, r.Longitude, r.SpeedKmh, r.FuelPercent, r.IgnitionOn, r.RecordedAt);
+        new(r.LocationId, r.VehicleId, r.Latitude, r.Longitude, r.SpeedKmh, r.FuelPercent, r.IgnitionOn, r.RecordedAt,
+            r.RoadSpeedLimitKmh);
 }

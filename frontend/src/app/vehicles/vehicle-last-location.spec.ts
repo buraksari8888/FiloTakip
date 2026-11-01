@@ -1,5 +1,11 @@
 import { LocationUpdate } from '../core/live-hub';
-import { applyLocation, VehicleLastLocation } from './vehicle-last-location';
+import {
+  applyLocation,
+  isSpeeding,
+  speedLimit,
+  speedLimitSource,
+  VehicleLastLocation,
+} from './vehicle-last-location';
 
 const vehicle = (vehicleId: number, recordedAt: string | null): VehicleLastLocation => ({
   vehicleId,
@@ -14,6 +20,7 @@ const vehicle = (vehicleId: number, recordedAt: string | null): VehicleLastLocat
   fuelPercent: recordedAt ? 60 : null,
   ignitionOn: recordedAt ? true : null,
   recordedAt,
+  roadSpeedLimitKmh: null,
 });
 
 const update = (vehicleId: number, recordedAt: string): LocationUpdate => ({
@@ -25,6 +32,7 @@ const update = (vehicleId: number, recordedAt: string): LocationUpdate => ({
   fuelPercent: 55,
   ignitionOn: true,
   recordedAt,
+  roadSpeedLimitKmh: 50,
 });
 
 describe('applyLocation', () => {
@@ -50,5 +58,26 @@ describe('applyLocation', () => {
   it('ignores a vehicle that is not in the list', () => {
     const list = [vehicle(1, '2026-10-31T10:00:00Z')];
     expect(applyLocation(list, update(99, '2026-10-31T10:00:03Z'))).toEqual(list);
+  });
+});
+
+describe('speedLimit', () => {
+  const at = (speedKmh: number, roadSpeedLimitKmh: number | null): VehicleLastLocation => ({
+    ...vehicle(1, '2026-10-31T10:00:00Z'),
+    speedKmh,
+    roadSpeedLimitKmh,
+  });
+
+  it('uses the road limit when it is lower than the vehicle limit', () => {
+    expect(speedLimit(at(60, 50))).toBe(50);
+    expect(speedLimitSource(at(60, 50))).toBe('yol');
+    expect(isSpeeding(at(60, 50))).toBe(true);
+  });
+
+  it('uses the vehicle limit on faster roads and unknown roads', () => {
+    expect(speedLimit(at(100, 120))).toBe(90);
+    expect(speedLimitSource(at(100, 120))).toBe('araç');
+    expect(speedLimit(at(60, null))).toBe(90);
+    expect(isSpeeding(at(60, null))).toBe(false);
   });
 });

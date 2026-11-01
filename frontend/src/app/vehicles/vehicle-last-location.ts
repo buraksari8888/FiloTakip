@@ -15,13 +15,24 @@ export interface VehicleLastLocation {
   fuelPercent: number | null;
   ignitionOn: boolean | null;
   recordedAt: string | null; // UTC, ör. "2026-10-28T17:55:49Z"
+  roadSpeedLimitKmh: number | null; // son konumdaki yolun sınırı; bilinen bir yolda değilse null
 }
 
 // API'deki AlarmRules.LowFuelPercent ile aynı: bunun altında hem alarm üretilir hem turuncu gösterilir
 const LOW_FUEL_PERCENT = 15;
 
+// Geçerli sınır: yolun sınırı ile aracın kendi sınırından küçük olanı (API'deki AlarmRules.EffectiveSpeedLimit)
+export function speedLimit(v: VehicleLastLocation): number {
+  return Math.min(v.roadSpeedLimitKmh ?? v.speedLimitKmh, v.speedLimitKmh);
+}
+
+// Hangi sınır geçerli: yolun mu, aracın kendi sınırı mı (API'deki alarm mesajıyla aynı kural)
+export function speedLimitSource(v: VehicleLastLocation): 'yol' | 'araç' {
+  return v.roadSpeedLimitKmh !== null && v.roadSpeedLimitKmh <= v.speedLimitKmh ? 'yol' : 'araç';
+}
+
 export function isSpeeding(v: VehicleLastLocation): boolean {
-  return v.speedKmh !== null && v.speedKmh > v.speedLimitKmh;
+  return v.speedKmh !== null && v.speedKmh > speedLimit(v);
 }
 
 export function isLowFuel(v: VehicleLastLocation): boolean {
@@ -42,6 +53,7 @@ export function applyLocation(list: VehicleLastLocation[], location: LocationUpd
           fuelPercent: location.fuelPercent,
           ignitionOn: location.ignitionOn,
           recordedAt: location.recordedAt,
+          roadSpeedLimitKmh: location.roadSpeedLimitKmh,
         }
       : v,
   );

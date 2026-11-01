@@ -3,7 +3,7 @@
 Araç filosu takip sistemi. Staj öncesi pratik projesi.
 
 Araçlardaki GPS cihazlarını taklit eden bir simülatör, konumları API'ye gönderir. API konumları
-veritabanına kaydeder, hız sınırı aşılınca, yakıt azalınca, araç uzun süre rölantide kalınca ya da bir bölgeye girip çıkınca alarm üretir. Web arayüzü araçları canlı olarak haritada
+veritabanına kaydeder, aracın bulunduğu yolun ya da aracın kendi hız sınırı aşılınca, yakıt azalınca, araç uzun süre rölantide kalınca ya da bir bölgeye girip çıkınca alarm üretir. Web arayüzü araçları canlı olarak haritada
 ve listede gösterir.
 
 ```text
@@ -41,10 +41,11 @@ cd database
 sqlcmd -S localhost -E -C -i 01_schema.sql
 sqlcmd -S localhost -E -C -i 02_seed.sql
 sqlcmd -S localhost -E -C -i 03_reports.sql
+sqlcmd -S localhost -E -C -i 07_road_segments.sql
 ```
 
 > `01_schema.sql` veritabanını silip baştan oluşturur. Çalıştırmadan önce API'yi durdur.
-> Sonra diğer ikisini de tekrar çalıştır (`03_reports.sql` rapor yordamını oluşturur).
+> Sonra diğerlerini de tekrar çalıştır (`03_reports.sql` rapor yordamını, `07_road_segments.sql` yolların hız sınırlarını ekler).
 >
 > Veritabanın daha eski bir sürümle oluşturulduysa ve verilerini silmek istemiyorsan `01_schema.sql` yerine
 > güncelleme betiklerini sırayla çalıştır (birden fazla çalıştırmak zararsız):
@@ -52,6 +53,8 @@ sqlcmd -S localhost -E -C -i 03_reports.sql
 > ```powershell
 > sqlcmd -S localhost -E -C -i 04_fuel_drain.sql   # yakıt hırsızlığı alarmı
 > sqlcmd -S localhost -E -C -i 05_geofences.sql    # bölgeler ve bölge alarmları
+> sqlcmd -S localhost -E -C -i 06_road_speed_limits.sql   # yola göre hız sınırı (tablo ve sütun)
+> sqlcmd -S localhost -E -C -i 07_road_segments.sql       # yol parçaları ve sınırları
 > ```
 
 ### 2. API
@@ -127,8 +130,11 @@ Rölanti süresi gerçek saatle ölçüldüğü için `--speedup` bu beklemeyi k
 girip çıkarlar. `--speedup 10` ile araçlar rotalarını birkaç dakikada bir baştan sona gittiğinden bölge
 alarmları sık gelir (filoda saatte ~30); gerçek zamanda bunun onda biri olur.
 
-Araçlar `routes.json` dosyasındaki gerçek yollar üzerinde gider. Rotaları değiştirirsen
-`python build_routes.py` ile yeniden oluştur. Bu komut OSRM yol tarifi servisine internetten istek atar.
+Araçlar `routes.json` dosyasındaki gerçek yollar üzerinde, yolun hız sınırına göre gider: sınırın biraz
+altında, önünde (250 m içinde) sınır düşüyorsa şimdiden yavaşlayarak. Ara sıra (~5 dakikada bir) sınırı
+12-30 km/s aşarlar (hız ihlali senaryosu). Rotaları değiştirirsen `python build_routes.py` ile yeniden
+oluştur, sonra `database/07_road_segments.sql`'i çalıştır. Bu komut internetten OSRM (yol tarifi) ve
+Overpass (OpenStreetMap sorgusu) servislerine istek atar.
 
 ### 5. Raporlar
 
@@ -193,7 +199,7 @@ cd frontend; ng test --watch=false          # Angular testleri
 API'nin terminalindeki her satır saat, seviye ve kaynakla (logu yazan sınıf) başlar:
 
 ```text
-14:03:12 info: FiloTakip.Api.Services.LocationService[0] Alarm #47 (SpeedLimit): 34 ABC 123 Hız sınırı aşıldı: 98,5 km/s (sınır 90)
+14:03:12 info: FiloTakip.Api.Services.LocationService[0] Alarm #47 (SpeedLimit): 34 ABC 123 Hız sınırı aşıldı: 98,5 km/s (araç sınırı 90)
 14:03:15 warn: FiloTakip.Api.Services.LocationService[0] Konum reddedildi: 999 numaralı araç yok
 ```
 
@@ -275,9 +281,16 @@ kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi
 
 ## Alarm kuralları
 
-- **Hız alarmı:** Hız, sınırı 5 km/s'ten fazla aşınca üretilir (tolerans). Araç sınırın üstünde
-  kalmaya devam ettikçe yeni alarm üretilmez, sadece sınırın altından üstüne geçtiği an sayılır.
-  Aynı araç için 5 dakikada en fazla bir hız alarmı üretilir.
+- **Hız alarmı:** Hız, geçerli sınırı 5 km/s'ten fazla aşınca üretilir (tolerans). Araç sınırın üstünde
+  kalmaya devam ettikçe yeni alarm üretilmez, sadece sınırın altından üstüne geçtiği an sayılır
+  (aynı hızla 90'lık yoldan 50'lik yola girmek de yeni bir ihlaldir). Aynı araç için 5 dakikada en fazla
+  bir hız alarmı üretilir.
+- **Geçerli hız sınırı:** Aracın bulunduğu yolun sınırı ile aracın kendi sınırından (ör. kamyon 80) küçük
+  olanı. GPS cihazı yolun sınırını bilmez; API konuma en yakın yol parçasını (`RoadSegments`) bulur ve
+  sınırını konum kaydına (`RoadSpeedLimitKmh`) yazar. Konum 30 metre içinde bilinen bir yolda değilse aracın
+  kendi sınırı geçerlidir. Yol parçaları ve sınırları OpenStreetMap'ten gelir (`maxspeed` etiketi; etiket
+  yoksa yol türüne göre Türkiye'deki genel sınır: otoyol 120, ana yol 90, şehir içi 50). Alarm mesajı hangi
+  sınırın aşıldığını söyler: "(yol sınırı 50)" ya da "(araç sınırı 80)".
 - **Düşük yakıt alarmı:** Yakıt %15'in altına indiği an üretilir. Yakıt düşük kaldıkça (depo dolana
   kadar) yeni alarm üretilmez. Yakıt sensörü dalgalanabildiği için (ör. %14,9 → %15,2 → %14,8) aynı
   araç için 10 dakikada en fazla bir düşük yakıt alarmı üretilir. Yakıt bilgisi göndermeyen cihazlarda bu alarm yoktur.
@@ -298,7 +311,7 @@ kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi
   konumu bölgenin içindeyse alarm yoktur (karşılaştıracak önceki konum yok). Konumlar arasında araç
   bölgenin içinden geçip çıkmışsa (iki konum da dışarıda) bu fark edilmez; bölge yarıçapı, cihazın iki konum
   arasında gittiği yoldan büyük seçilmelidir.
-- **Liste ve harita:** Hız sınırın üstündeyse araç toleranssız olarak kırmızı, yakıt %15'in altındaysa turuncu gösterilir.
+- **Liste ve harita:** Hız geçerli sınırın üstündeyse araç toleranssız olarak kırmızı, yakıt %15'in altındaysa turuncu gösterilir.
 
 ## Proje yapısı
 
@@ -334,7 +347,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `simulator.py` | Komut satırı ve ana döngü |
 | `vehicle.py` | Aracın hareketi (konum, hız, yakıt) |
 | `api_client.py` | API ile konuşma (HTTP istekleri); hata cevaplarını `ApiError`'a çevirir |
-| `build_routes.py` | Rotaları OSRM ile gerçek yollara oturtur, `routes.json` dosyasını yazar |
+| `build_routes.py` | Rotaları OSRM ile gerçek yollara oturtur, yolların hız sınırlarını Overpass'tan alır; `routes.json` ve `database/07_road_segments.sql` dosyalarını yazar |
 
 ### reports
 
@@ -352,13 +365,16 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `03_reports.sql` | Rapor saklı yordamı (`usp_DailyFleetReport`) |
 | `04_fuel_drain.sql` | Var olan veritabanına yakıt kaybı alarm türünü ekler (veriyi silmeden) |
 | `05_geofences.sql` | Var olan veritabanına bölgeler tablosunu, örnek bölgeleri ve bölge alarm türlerini ekler (veriyi silmeden) |
+| `06_road_speed_limits.sql` | Var olan veritabanına yol parçaları tablosunu ve konumlara yol sınırı sütununu ekler (veriyi silmeden) |
+| `07_road_segments.sql` | Yol parçaları ve hız sınırları (`build_routes.py` oluşturur, elle değiştirilmez) |
 
 ## Tablolar
 
 - **Drivers**: sürücüler
 - **Vehicles**: araçlar (plaka, hız sınırı, atanmış sürücü)
-- **LocationRecords**: araçlardan gelen konum / hız / yakıt kayıtları
+- **LocationRecords**: araçlardan gelen konum / hız / yakıt kayıtları (ve API'nin bulduğu yol sınırı)
 - **Alarms**: hız ihlali, düşük yakıt gibi uyarılar
 - **Geofences**: bölgeler (merkez, yarıçap, girişte/çıkışta alarm)
+- **RoadSegments**: yol parçaları (iki nokta arası) ve hız sınırları
 - **vw_VehicleLastLocation**: her aracın son konumu (view)
 - **usp_DailyFleetReport**: günlük filo raporu (saklı yordam)

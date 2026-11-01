@@ -10,6 +10,7 @@ const point = (recordedAt: string, latitude = 41): LocationUpdate => ({
   fuelPercent: 60,
   ignitionOn: true,
   recordedAt,
+  roadSpeedLimitKmh: 50,
 });
 
 describe('recentTrail', () => {

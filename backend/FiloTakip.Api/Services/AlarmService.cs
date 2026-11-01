@@ -31,10 +31,11 @@ public class AlarmService(
 
     // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt, yakıt hırsızlığı, rölanti, bölge). KAYDETMEZ: kaydetme işini çağıran yapar,
     // böylece konum ve alarmlar tek SaveChanges ile birlikte kaydedilir (ya hepsi ya hiçbiri).
+    // vehicleSpeedLimitKmh: aracın kendi sınırı (yolun sınırı location.RoadSpeedLimitKmh'de).
     // previous: aracın bir önceki konumu (ilk konumuysa null). Eklenen alarmları döner, çoğu zaman boş liste.
     public async Task<List<Alarm>> AddAlarmsIfNeededAsync(
         LocationRecord location,
-        short speedLimitKmh,
+        short vehicleSpeedLimitKmh,
         LocationRecord? previous,
         CancellationToken cancellationToken)
     {
@@ -43,13 +44,15 @@ public class AlarmService(
 
         // İlk kontrol veritabanına gitmeden yapılır: araç hızlı değilse son alarmı sorgulamaya gerek yok
         // (konumların çoğu bu durumda)
-        if (AlarmRules.IsSpeeding(speedLimitKmh, location.SpeedKmh)
+        var speedLimit = AlarmRules.EffectiveSpeedLimit(vehicleSpeedLimitKmh, location.RoadSpeedLimitKmh);
+        if (AlarmRules.IsSpeeding(speedLimit, location.SpeedKmh)
             && AlarmRules.ShouldCreateSpeedAlarm(
-                speedLimitKmh, previous?.SpeedKmh, location.SpeedKmh,
-                await GetLastAlarmAtAsync(location.VehicleId, AlarmTypes.SpeedLimit, cancellationToken), now))
+                speedLimit, previous?.SpeedKmh, location.SpeedKmh,
+                await GetLastAlarmAtAsync(location.VehicleId, AlarmTypes.SpeedLimit, cancellationToken), now,
+                previous is null ? null : AlarmRules.EffectiveSpeedLimit(vehicleSpeedLimitKmh, previous.RoadSpeedLimitKmh)))
         {
             added.Add(AddAlarm(location, AlarmTypes.SpeedLimit,
-                AlarmRules.SpeedViolationMessage(speedLimitKmh, location.SpeedKmh)));
+                AlarmRules.SpeedViolationMessage(vehicleSpeedLimitKmh, location.RoadSpeedLimitKmh, location.SpeedKmh)));
         }
 
         // Yakıt bilgisi olmayan cihazlarda (FuelPercent null) yakıt alarmı yok
