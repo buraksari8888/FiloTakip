@@ -61,6 +61,15 @@ export function createMap(element: HTMLElement): L.Map {
   return map;
 }
 
+// Sayfadan çıkarken haritayı kaldırır. Leaflet 1.9'da yakınlaştırma animasyonu sürerken harita kaldırılırsa,
+// animasyonun 250 ms sonra çalışan bitiş fonksiyonu kaldırılmış haritada hata veriyor
+// ("Cannot read properties of undefined (reading '_leaflet_pos')"; menüde hızlı gezinince oluyordu).
+// Bitiş fonksiyonu "animasyon sürüyor mu" bayrağına bakıp çıkıyor: kaldırmadan önce bayrağı indiriyoruz.
+export function removeMap(map: L.Map): void {
+  (map as unknown as { _animatingZoom: boolean })._animatingZoom = false;
+  map.remove();
+}
+
 // Haritadaki araç işareti: renkli nokta + yanında plaka
 export function markerIcon(plate: string): L.DivIcon {
   return L.divIcon({

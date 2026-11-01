@@ -56,6 +56,7 @@ sqlcmd -S localhost -E -C -i 07_road_segments.sql
 > sqlcmd -S localhost -E -C -i 06_road_speed_limits.sql   # yola göre hız sınırı (tablo ve sütun)
 > sqlcmd -S localhost -E -C -i 07_road_segments.sql       # yol parçaları ve sınırları
 > sqlcmd -S localhost -E -C -i 08_vehicle_management.sql  # araç türü
+> sqlcmd -S localhost -E -C -i 09_driver_one_vehicle.sql   # bir sürücü aynı anda tek araçta
 > ```
 
 ### 2. API
@@ -87,6 +88,7 @@ Arayüz: <http://localhost:4200>
 | | `/gecmis?arac=3` | O araç seçili açılır |
 | Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster", "Geçmiş", "Sürücü" ve "Sil". Arama kutusu plaka, marka, model, tür ve sürücü adında arar: büyük/küçük harf, Türkçe harfler ve boşluklar önemsiz ("yilmaz" "Yılmaz"ı, "34abc" "34 ABC 123"ü bulur), her kelime bir alanda geçmeli ("ford ahmet"). Ayrıntılar aşağıda (Araç yönetimi) |
 | Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme, silme; her satırda "Haritada göster" |
+| | başka her adres | Haritaya yönlendirilir (yanlış yazılmış bağlantı boş sayfa açmasın) |
 
 Arayüz varsayılan olarak koyu temada açılır; üst menünün sağındaki ☀ / ☾ düğmesi açık temaya geçirir (seçim tarayıcıda hatırlanır). Koyu temada harita altlığının renkleri ters çevrilip kısılır, araçlar ve izler kendi renklerinde kalır. Canlı haritada araçlar yeni konumlarına ışınlanmak yerine 1 saniyede kayar; hız sınırını aşan aracın işareti kırmızı ve nabız gibi atar. Araçlar sayfasının üstündeki kartlar filonun anlık durumunu gösterir (araç sayısı, hareket halinde, hız ihlali, düşük yakıt).
 
@@ -105,6 +107,8 @@ Arayüz varsayılan olarak koyu temada açılır; üst menünün sağındaki ☀
   ehliyet no, telefon) ya da araç sürücüsüz bırakılır. Bir sürücü aynı anda tek araç kullanır: başka araçtaki
   sürücü seçilirse o araç sürücüsüz kalır.
 - Değişiklikler canlı bağlantıyla diğer açık sekmelere de anında yansır.
+- Aynı anda gelen istekler (iki kullanıcı aynı plakayı ya da ehliyet numarasını aynı anda ekler, aynı sürücüyü aynı anda
+  iki araca atar) veritabanının UNIQUE kurallarına takılır: ikinci istek 409 ve anlaşılır bir mesaj alır, veri bozulmaz.
 
 ### 4. Simülatör
 
@@ -133,6 +137,7 @@ python simulator.py --all --speedup 10
 | `--interval 1` | Her 1 saniyede konum gönderir (varsayılan 3) |
 | `--steps 20` | 20 tur sonra durur (varsayılan: Ctrl+C'ye kadar) |
 | `--speedup 10` | Zaman 10 kat hızlı akar, haritada hareket belirgin olur |
+| | Geçersiz değerler hata mesajıyla reddedilir: `--interval` 0.05'ten büyük ve en fazla 3600 sn, `--steps` en az 1, `--speedup` 0'dan büyük ve en fazla 100 |
 | `--api-url http://...` | Başka adresteki API'ye gönderir |
 | `--log-level ERROR` | Sadece sorunları yazar (bkz. [Loglar](#loglar)) |
 | `python simulator.py --help` | Bütün seçenekleri listeler |
@@ -398,6 +403,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `05_geofences.sql` | Var olan veritabanına bölgeler tablosunu, örnek bölgeleri ve bölge alarm türlerini ekler (veriyi silmeden) |
 | `06_road_speed_limits.sql` | Var olan veritabanına yol parçaları tablosunu ve konumlara yol sınırı sütununu ekler (veriyi silmeden) |
 | `07_road_segments.sql` | Yol parçaları ve hız sınırları (`build_routes.py` oluşturur, elle değiştirilmez) |
+| `09_driver_one_vehicle.sql` | Var olan veritabanına "bir sürücü aynı anda tek araçta" kuralını (UNIQUE index) ekler, varsa çakışmaları temizler |
 | `08_vehicle_management.sql` | Var olan veritabanına araç türü sütununu ekler, örnek araçların türünü doldurur (veriyi silmeden) |
 
 ## Tablolar

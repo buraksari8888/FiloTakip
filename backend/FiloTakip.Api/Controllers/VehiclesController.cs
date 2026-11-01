@@ -52,6 +52,8 @@ public class VehiclesController(VehicleService vehicles, LocationService locatio
         var (result, vehicle) = await vehicles.CreateAsync(dto with { Plate = plate! }, cancellationToken);
         if (result == VehicleChangeResult.PlateTaken)
             return Problem(statusCode: StatusCodes.Status409Conflict, title: $"{plate} plakalı bir araç zaten kayıtlı.");
+        if (result == VehicleChangeResult.DriverBusy)
+            return DriverBusy();
         if (result == VehicleChangeResult.DriverNotFound)
         {
             ModelState.AddModelError(nameof(dto.DriverId), "Seçilen sürücü bulunamadı.");
@@ -79,6 +81,8 @@ public class VehiclesController(VehicleService vehicles, LocationService locatio
         var result = await vehicles.AssignDriverAsync(id, dto.DriverId, cancellationToken);
         if (result == VehicleChangeResult.NotFound)
             return NotFound();
+        if (result == VehicleChangeResult.DriverBusy)
+            return DriverBusy();
         if (result == VehicleChangeResult.DriverNotFound)
         {
             ModelState.AddModelError(nameof(dto.DriverId), "Seçilen sürücü bulunamadı.");
@@ -87,6 +91,11 @@ public class VehiclesController(VehicleService vehicles, LocationService locatio
 
         return NoContent();
     }
+
+    // Aynı sürücü aynı anda başka bir araca da atanıyordu (iki kullanıcı aynı anda); kayıt değişmedi
+    private ObjectResult DriverBusy() => Problem(
+        statusCode: StatusCodes.Status409Conflict,
+        title: "Sürücü aynı anda başka bir araca atandı. Listeyi yenileyip tekrar dene.");
 
     // GET /api/vehicles/5/locations?minutes=30 -> aracın son 30 dakikadaki konumları, eskiden yeniye (haritadaki iz)
     // minutes 1-1440 (en fazla 1 gün) dışındaysa otomatik 400 döner
