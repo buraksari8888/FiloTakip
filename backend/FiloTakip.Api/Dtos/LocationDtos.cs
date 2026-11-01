@@ -6,10 +6,10 @@ namespace FiloTakip.Api.Dtos;
 // Kurallara uymayan istekler controller'a hiç ulaşmaz, otomatik olarak 400 Bad Request döner.
 public record CreateLocationDto(
     [Range(1, int.MaxValue)] int VehicleId,
-    [Range(-90, 90)] decimal Latitude,
-    [Range(-180, 180)] decimal Longitude,
-    [Range(0, 300)] decimal SpeedKmh,
-    [Range(0, 100)] decimal? FuelPercent,
+    [Range(-90.0, 90.0)] decimal Latitude,       // .0: sınırlar ondalıklı karşılaştırılsın (90.0000001 reddedilsin)
+    [Range(-180.0, 180.0)] decimal Longitude,
+    [Range(0.0, 300.0)] decimal SpeedKmh,
+    [Range(0.0, 100.0)] decimal? FuelPercent,
     bool IgnitionOn,
     DateTime? RecordedAt);   // cihazın ölçüm anı (UTC); gönderilmezse sunucu saati kullanılır
 

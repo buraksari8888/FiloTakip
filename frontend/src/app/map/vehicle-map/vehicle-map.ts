@@ -30,7 +30,7 @@ import {
   speedLimitSource,
   VehicleLastLocation,
 } from '../../vehicles/vehicle-last-location';
-import { animateMarker, createMap, escapeHtml, MAP_COLORS, markerIcon, toId } from '../map-helpers';
+import { animateMarker, createMap, escapeHtml, MAP_COLORS, markerIcon, removeMap, toId } from '../map-helpers';
 import { recentTrail, TRAIL_MINUTES, trailSegments } from './trail';
 
 const FOCUS_ZOOM = 16; // tek bir araca ya da alarma yakınlaşırken (sokak düzeyi)
@@ -180,7 +180,12 @@ export class VehicleMap {
     });
 
     // Sayfadan çıkınca haritayı temizle
-    inject(DestroyRef).onDestroy(() => this.map()?.remove());
+    inject(DestroyRef).onDestroy(() => {
+      const map = this.map();
+      if (map) {
+        removeMap(map);
+      }
+    });
   }
 
   private updateMarkers(map: L.Map, vehicles: VehicleLastLocation[]): void {

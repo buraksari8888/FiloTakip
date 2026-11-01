@@ -19,4 +19,6 @@ export const routes: Routes = [
   { path: 'araclar', component: VehicleList, title: 'Araçlar · FiloTakip' },
   { path: 'alarmlar', component: AlarmList, title: 'Alarmlar · FiloTakip' },
   { path: '', redirectTo: 'harita', pathMatch: 'full' },
+  // Bilinmeyen adres (/bilinmeyen-sayfa, yanlış yazılmış bağlantı): boş sayfa ve hata yerine haritaya git
+  { path: '**', redirectTo: 'harita' },
 ];

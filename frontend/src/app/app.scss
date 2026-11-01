@@ -142,12 +142,22 @@ main {
 @media (max-width: 600px) {
   // Logo, menü ve canlı göstergesi en dar telefonda (320 px) da tek satıra sığsın
   .topbar {
-    gap: 12px;
-    padding: 0 16px;
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  nav {
+    gap: 0;
   }
 
   nav a {
-    padding: 6px 8px;
+    padding: 6px 7px;
+  }
+
+  .theme-toggle {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
   }
 
   .brand {

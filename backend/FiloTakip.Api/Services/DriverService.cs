@@ -54,7 +54,14 @@ public class DriverService(
             LicenseNumber = licenseNumber
         };
         db.Drivers.Add(driver);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException e) when (DbErrors.IsUniqueViolation(e, "UQ_Drivers_LicenseNumber"))
+        {
+            return null;   // aynı ehliyet numarası az önce başka bir istekle eklendi
+        }
         // Ad loga yazılmıyor: kişisel bilgi, numarası yeterli
         logger.LogInformation("Sürücü #{DriverId} eklendi", driver.DriverId);
         return new DriverDto(driver.DriverId, driver.FirstName, driver.LastName, driver.Phone, driver.LicenseNumber, null);

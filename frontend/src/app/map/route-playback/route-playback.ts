@@ -23,7 +23,7 @@ import { LocationUpdate } from '../../core/live-hub';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
 import { VehicleApi } from '../../vehicles/vehicle-api';
-import { createMap, escapeHtml, MAP_COLORS, markerIcon, toId } from '../map-helpers';
+import { createMap, escapeHtml, MAP_COLORS, markerIcon, removeMap, toId } from '../map-helpers';
 import { distanceKm } from '../vehicle-map/trail';
 import {
   findStops,
@@ -141,7 +141,10 @@ export class RoutePlayback {
     this.destroyRef.onDestroy(() => {
       this.pause();
       clearTimeout(this.skipNoticeTimer);
-      this.map()?.remove();
+      const map = this.map();
+      if (map) {
+        removeMap(map);
+      }
     });
   }
 

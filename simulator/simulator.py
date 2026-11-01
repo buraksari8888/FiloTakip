@@ -95,15 +95,34 @@ def run(api, sims, interval, steps, speedup):
         time.sleep(interval)
 
 
+def number_between(kind, low, high):
+    """argparse için sayı türü: low'dan büyük, high'dan küçük ya da eşit olmalı (yoksa anlaşılır bir hata).
+    Örneğin --interval -1 sınır olmasa time.sleep(-1)'de çöküyordu, --interval 0 da API'ye durmadan istek yağdırıyordu."""
+    def parse(text):
+        try:
+            value = kind(text)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"sayı olmalı: {text!r}")
+        if not low < value <= high:
+            raise argparse.ArgumentTypeError(f"{low}'dan büyük ve en fazla {high} olmalı: {text}")
+        return value
+    return parse
+
+
 def main():
     """Çıkış kodunu döner: 0 = başarılı, 1 = hata (onu çalıştıran betikler başarısız olduğunu anlayabilsin)."""
     parser = argparse.ArgumentParser(description="FiloTakip araç simülatörü")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--all", action="store_true", help="bütün aktif araçları sür")
     group.add_argument("--vehicle", type=int, help="sadece bu numaralı aracı sür")
-    parser.add_argument("--interval", type=float, default=3, help="kaç saniyede bir konum gönderilsin (varsayılan 3)")
-    parser.add_argument("--steps", type=int, help="kaç tur sürülsün (verilmezse Ctrl+C'ye kadar)")
-    parser.add_argument("--speedup", type=float, default=1, help="zaman kaç kat hızlı aksın (varsayılan 1 = gerçek zaman)")
+    parser.add_argument("--interval", type=number_between(float, 0.05, 3600), default=3,
+                        help="kaç saniyede bir konum gönderilsin (varsayılan 3, en az 0.05)")
+    parser.add_argument("--steps", type=number_between(int, 0, 10**9),
+                        help="kaç tur sürülsün (en az 1; verilmezse Ctrl+C'ye kadar)")
+    # Üst sınır: 100 katta 3 saniyelik adım zaten 5 dakikalık yol; daha fazlasında araç bir adımda rotayı
+    # baştan sona birkaç kez gider, haritada anlamsız sıçramalar olur
+    parser.add_argument("--speedup", type=number_between(float, 0, 100), default=1,
+                        help="zaman kaç kat hızlı aksın (varsayılan 1 = gerçek zaman, en fazla 100)")
     parser.add_argument("--api-url", default=DEFAULT_API_URL,
                         help="API'nin adresi (varsayılan: %(default)s, FILOTAKIP_API_URL ortam değişkeniyle de verilebilir)")
     parser.add_argument("--log-level", default="INFO", type=str.upper, choices=["DEBUG", "INFO", "WARNING", "ERROR"],

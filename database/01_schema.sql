@@ -53,7 +53,9 @@ CREATE TABLE dbo.Vehicles
 );
 GO
 
-CREATE INDEX IX_Vehicles_DriverId ON dbo.Vehicles (DriverId);
+-- Bir sürücü aynı anda tek araçta: sürücüsü olan araçlarda DriverId tekrar edemez (sürücüsüzler, NULL, hariç).
+-- API de sürücüyü başka araca atarken eski araçtan alıyor; bu kural aynı anda gelen iki atamayı da yakalar.
+CREATE UNIQUE INDEX UX_Vehicles_DriverId ON dbo.Vehicles (DriverId) WHERE DriverId IS NOT NULL;
 GO
 
 /* ---------- Konum kayıtları (en çok veri bu tabloya gelir) ---------- */

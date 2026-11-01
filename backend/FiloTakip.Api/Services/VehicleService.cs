@@ -8,8 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FiloTakip.Api.Services;
 
-// Araç ekleme ya da sürücü atama sonucu: başarılı mı, değilse neden
-public enum VehicleChangeResult { Ok, NotFound, PlateTaken, DriverNotFound }
+// Araç ekleme ya da sürücü atama sonucu: başarılı mı, değilse neden.
+// DriverBusy: aynı sürücü aynı anda başka bir araca da atanıyordu (iki kullanıcı aynı anda); tekrar denenebilir.
+public enum VehicleChangeResult { Ok, NotFound, PlateTaken, DriverNotFound, DriverBusy }
 
 // Araçlarla ilgili işlemler: listeleme, ekleme, pasife alma, sürücü atama
 public class VehicleService(
@@ -77,6 +78,8 @@ public class VehicleService(
             return (VehicleChangeResult.PlateTaken, null);
 
         var reactivated = vehicle is not null;
+        // Sürücü başka araçtan alınırken o değişiklik ve bu araç birlikte kaydedilsin (ya hepsi ya hiçbiri)
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         vehicle ??= db.Vehicles.Add(new Vehicle { Plate = dto.Plate }).Entity;
         vehicle.VehicleType = dto.VehicleType;
         vehicle.Brand = VehicleRules.CleanText(dto.Brand);
@@ -87,7 +90,19 @@ public class VehicleService(
         if (!await SetDriverAsync(vehicle, dto.DriverId, cancellationToken))
             return (VehicleChangeResult.DriverNotFound, null);
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException e) when (DbErrors.IsUniqueViolation(e, "UQ_Vehicles_Plate"))
+        {
+            return (VehicleChangeResult.PlateTaken, null);   // aynı plaka az önce başka bir istekle eklendi
+        }
+        catch (DbUpdateException e) when (DbErrors.IsUniqueViolation(e, DriverIndex))
+        {
+            return (VehicleChangeResult.DriverBusy, null);
+        }
         logger.LogInformation(reactivated ? "Araç yeniden açıldı: {Plate}" : "Araç eklendi: {Plate}", vehicle.Plate);
         await live.Clients.All.VehiclesChanged();
         return (VehicleChangeResult.Ok, await GetByIdAsync(vehicle.VehicleId, cancellationToken));
@@ -116,17 +131,32 @@ public class VehicleService(
         var vehicle = await db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == vehicleId && v.IsActive, cancellationToken);
         if (vehicle is null)
             return VehicleChangeResult.NotFound;
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         if (!await SetDriverAsync(vehicle, driverId, cancellationToken))
             return VehicleChangeResult.DriverNotFound;
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException e) when (DbErrors.IsUniqueViolation(e, DriverIndex))
+        {
+            return VehicleChangeResult.DriverBusy;
+        }
         logger.LogInformation("{Plate} aracının sürücüsü değişti: #{DriverId}", vehicle.Plate, driverId);
         await live.Clients.All.VehiclesChanged();
         return VehicleChangeResult.Ok;
     }
 
+    // Veritabanında "bir sürücü tek araçta" kuralını uygulayan index (09_driver_one_vehicle.sql)
+    private const string DriverIndex = "UX_Vehicles_DriverId";
+
     // Sürücüyü araca bağlar. Sürücü başka bir araçtaysa oradan alınır: bir sürücü aynı anda tek araç kullanır.
-    // Sürücü yoksa ya da pasifse false. KAYDETMEZ: kaydetme işini çağıran yapar (hepsi tek SaveChanges ile).
+    // Sürücü yoksa ya da pasifse false. Diğer araçtan alma hemen veritabanına yazılır (araç önce boşalmalı, yoksa
+    // UX_Vehicles_DriverId kuralı atamayı reddeder); bu yüzden çağıran bir transaction açmış olmalı.
+    // Bu aracın kendisini KAYDETMEZ: onu çağıran SaveChanges ile kaydeder.
     private async Task<bool> SetDriverAsync(Vehicle vehicle, int? driverId, CancellationToken cancellationToken)
     {
         if (driverId is int id)
@@ -134,11 +164,9 @@ public class VehicleService(
             if (!await db.Drivers.AnyAsync(d => d.DriverId == id && d.IsActive, cancellationToken))
                 return false;
 
-            var otherVehicles = await db.Vehicles
+            await db.Vehicles
                 .Where(v => v.DriverId == id && v.VehicleId != vehicle.VehicleId)
-                .ToListAsync(cancellationToken);
-            foreach (var other in otherVehicles)
-                other.DriverId = null;
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.DriverId, (int?)null), cancellationToken);
         }
         vehicle.DriverId = driverId;
         return true;

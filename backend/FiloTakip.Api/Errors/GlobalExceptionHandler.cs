@@ -14,6 +14,16 @@ public class GlobalExceptionHandler(IProblemDetailsService problemDetails, ILogg
         // Aynı iz numarası (traceId) hem bu logda hem de kullanıcıya dönen cevapta var:
         // kullanıcı numarayı söylerse hatanın ayrıntısını logda bulabiliriz
         var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+
+        // İstemci cevabı beklemeden vazgeçti (sayfadan çıktı, aynı veriyi yeniden istedi). Veritabanı sorgusu yarıda
+        // kesilince SqlClient bunu "önemli bir hata" diye bildiriyor; bu bir sunucu hatası değil, cevap da gidemez.
+        if (context.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogDebug("İstek istemci tarafından iptal edildi: {Method} {Path}", context.Request.Method, context.Request.Path);
+            context.Response.StatusCode = 499;   // "istemci kapattı" (nginx'in kullandığı standart dışı kod)
+            return true;
+        }
+
         logger.LogError(exception, "Beklenmeyen hata: {Method} {Path} (traceId {TraceId})",
             context.Request.Method, context.Request.Path, traceId);
 
