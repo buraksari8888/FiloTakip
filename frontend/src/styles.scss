@@ -470,6 +470,33 @@ path.geofence {
   fill: var(--geofence);
 }
 
+// Bölgeler sayfasında listede seçili bölge
+path.geofence.selected {
+  stroke-width: 3;
+  fill-opacity: 0.22;
+}
+
+// Bölgeler sayfasında düzenlenen bölge: düz çizgi, ana renk
+path.geofence-edit {
+  stroke: var(--accent);
+  fill: var(--accent);
+}
+
+// Düzenlenen bölgenin tutamakları: ortadaki taşır, kenardaki büyütür/küçültür
+.geofence-handle {
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.5);
+  cursor: move;
+
+  &.edge {
+    border-color: var(--accent);
+    background: #fff;
+    cursor: ew-resize;
+  }
+}
+
 // Bölgenin adı (dairenin ortasında sürekli görünen yazı)
 .leaflet-tooltip.geofence-label {
   padding: 2px 7px;

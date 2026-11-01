@@ -140,18 +140,36 @@ main {
 }
 
 @media (max-width: 600px) {
-  // Logo, menü ve canlı göstergesi en dar telefonda (320 px) da tek satıra sığsın
+  // Logo, menü ve canlı göstergesi en dar telefonda (320 px) da tek satırda kalsın
   .topbar {
     gap: 8px;
     padding: 0 12px;
   }
 
+  // Beş bağlantı dar ekrana sığmıyor: menü kendi içinde yana kayar, sağ kenarı solarak devamı olduğunu belli eder
   nav {
+    flex: 1;
+    min-width: 0;
     gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none; // kaydırma çubuğu görünmesin (parmakla kayıyor)
+    mask-image: linear-gradient(to right, #000 85%, transparent);
+
+    // Sona kadar kaydırınca son bağlantı solan kısımda kalmasın
+    &::after {
+      content: '';
+      flex: 0 0 24px;
+    }
   }
 
   nav a {
+    flex-shrink: 0;
     padding: 6px 7px;
+    white-space: nowrap;
+  }
+
+  .live {
+    flex-shrink: 0;
   }
 
   .theme-toggle {

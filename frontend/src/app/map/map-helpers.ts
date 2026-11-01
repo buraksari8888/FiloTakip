@@ -1,4 +1,5 @@
 import * as L from 'leaflet';
+import { Geofence, geofenceAlarmText } from '../geofences/geofence';
 
 // Canlı harita ve geçmiş rota sayfasının ortak harita parçaları
 
@@ -68,6 +69,32 @@ export function createMap(element: HTMLElement): L.Map {
 export function removeMap(map: L.Map): void {
   (map as unknown as { _animatingZoom: boolean })._animatingZoom = false;
   map.remove();
+}
+
+// Bölgeler için ayrı katman: çizgilerin (iz, 400) ve araç işaretlerinin (600) altında kalsın, onları örtmesin
+const GEOFENCE_PANE = 'geofences';
+
+export function createGeofencePane(map: L.Map): void {
+  map.createPane(GEOFENCE_PANE).style.zIndex = '350';
+}
+
+// Bölge: kesik çizgili daire, ortasında adı ve hangi geçişte alarm verdiği (canlı harita ve Bölgeler sayfası).
+// interactive: false -> dairenin üstüne tıklamak, altındaki haritayı sürüklemeyi ya da araca tıklamayı engellemesin
+export function geofenceCircle(zone: Geofence, interactive = false): L.Circle {
+  return L.circle([zone.latitude, zone.longitude], {
+    radius: zone.radiusMeters, // metre: harita yakınlaştıkça daire de büyür
+    pane: GEOFENCE_PANE,
+    className: 'geofence', // renk styles.scss'te
+    weight: 2,
+    dashArray: '6 4',
+    fillOpacity: 0.12,
+    interactive,
+  }).bindTooltip(`${escapeHtml(zone.name)}<br>${geofenceAlarmText(zone)}`, {
+    permanent: true,
+    direction: 'center',
+    className: 'geofence-label',
+    pane: GEOFENCE_PANE,
+  });
 }
 
 // Haritadaki araç işareti: renkli nokta + yanında plaka

@@ -14,11 +14,11 @@ import {
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import * as L from 'leaflet';
-import { catchError, filter, of, scan, startWith, switchMap } from 'rxjs';
+import { catchError, filter, merge, of, scan, startWith, switchMap, tap } from 'rxjs';
 import { Alarm } from '../../alarms/alarm';
 import { AlarmApi } from '../../alarms/alarm-api';
 import { LiveHub, LocationUpdate } from '../../core/live-hub';
-import { Geofence, geofenceAlarmText } from '../../geofences/geofence';
+import { Geofence } from '../../geofences/geofence';
 import { GeofenceApi } from '../../geofences/geofence-api';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
@@ -30,11 +30,20 @@ import {
   speedLimitSource,
   VehicleLastLocation,
 } from '../../vehicles/vehicle-last-location';
-import { animateMarker, createMap, escapeHtml, MAP_COLORS, markerIcon, removeMap, toId } from '../map-helpers';
+import {
+  animateMarker,
+  createGeofencePane,
+  createMap,
+  escapeHtml,
+  geofenceCircle,
+  MAP_COLORS,
+  markerIcon,
+  removeMap,
+  toId,
+} from '../map-helpers';
 import { recentTrail, TRAIL_MINUTES, trailSegments } from './trail';
 
 const FOCUS_ZOOM = 16; // tek bir araca ya da alarma yakınlaşırken (sokak düzeyi)
-const GEOFENCE_PANE = 'geofences';
 
 @Component({
   imports: [ApiErrorAlert],
@@ -116,13 +125,20 @@ export class VehicleMap {
 
   protected readonly geofenceError = signal<HttpErrorResponse | null>(null);
 
-  // Bölgeler sayfa açılınca bir kez çekilir (sık değişmezler)
+  // Bölgeler sayfa açılınca çekilir; Bölgeler sayfasında (bu ya da başka bir tarayıcıda) değişince ve canlı
+  // bağlantı koptuktan sonra yeniden kurulunca tekrar çekilir
   private readonly geofences = toSignal(
-    this.geofenceApi.getGeofences().pipe(
-      catchError((error: HttpErrorResponse) => {
-        this.geofenceError.set(error);
-        return of([]);
-      }),
+    merge(this.hub.geofencesChanged$, this.hub.reconnected$).pipe(
+      startWith(undefined),
+      switchMap(() =>
+        this.geofenceApi.getGeofences().pipe(
+          tap(() => this.geofenceError.set(null)),
+          catchError((error: HttpErrorResponse) => {
+            this.geofenceError.set(error);
+            return of([]);
+          }),
+        ),
+      ),
     ),
     { initialValue: [] },
   );
@@ -140,8 +156,7 @@ export class VehicleMap {
     // Leaflet gerçek bir HTML elemanına ihtiyaç duyar, bu yüzden haritayı sayfa çizildikten sonra oluşturuyoruz
     afterNextRender(() => {
       const map = createMap(this.mapElement().nativeElement);
-      // Bölgeler için ayrı katman: çizgilerin (iz, 400) ve araç işaretlerinin (600) altında kalsın, onları örtmesin
-      map.createPane(GEOFENCE_PANE).style.zIndex = '350';
+      createGeofencePane(map);
       this.map.set(map);
     });
 
@@ -275,28 +290,11 @@ export class VehicleMap {
     }
   }
 
-  // Bölgeler: kesik çizgili daire, ortasında adı ve hangi geçişte alarm verdiği.
-  // interactive: false -> dairenin üstüne tıklamak, altındaki haritayı sürüklemeyi ya da araca tıklamayı engellemesin
   private drawGeofences(map: L.Map, zones: Geofence[]): void {
     this.geofenceLayer ??= L.layerGroup().addTo(map);
     this.geofenceLayer.clearLayers();
     for (const zone of zones) {
-      L.circle([zone.latitude, zone.longitude], {
-        radius: zone.radiusMeters, // metre: harita yakınlaştıkça daire de büyür
-        pane: GEOFENCE_PANE,
-        className: 'geofence', // renk styles.scss'te
-        weight: 2,
-        dashArray: '6 4',
-        fillOpacity: 0.12,
-        interactive: false,
-      })
-        .bindTooltip(`${escapeHtml(zone.name)}<br>${geofenceAlarmText(zone)}`, {
-          permanent: true,
-          direction: 'center',
-          className: 'geofence-label',
-          pane: GEOFENCE_PANE,
-        })
-        .addTo(this.geofenceLayer);
+      geofenceCircle(zone).addTo(this.geofenceLayer);
     }
   }
 

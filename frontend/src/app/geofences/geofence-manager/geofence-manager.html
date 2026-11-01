@@ -1,0 +1,93 @@
+<h1>Bölgeler</h1>
+
+<section class="panel">
+  @if (editing() === null) {
+    <div class="panel-head">
+      <p class="hint">Araç bir bölgeye girince ya da çıkınca alarm üretilir; hangisinde isteneceği bölgeye göre seçilir.</p>
+      <button type="button" class="btn" (click)="startNew()">+ Yeni bölge</button>
+    </div>
+
+    @if (listError(); as error) {
+      <app-api-error-alert [error]="error" action="Bölgeler yüklenemedi" />
+    }
+    @if (actionError(); as error) {
+      <app-api-error-alert [error]="error" action="Bölge silinemedi" />
+    }
+
+    @if (zones(); as zones) {
+      <ul class="zones">
+        @for (zone of zones; track zone.geofenceId) {
+          <li [id]="'zone-' + zone.geofenceId" [class.selected]="zone.geofenceId === selectedId()">
+            <button type="button" class="zone" (click)="select(zone, true)">
+              <strong>{{ zone.name }}</strong>
+              <small>{{ zone.radiusMeters | number }} m · {{ alarmText(zone) }}</small>
+            </button>
+            <div class="actions">
+              <button type="button" class="btn small secondary" (click)="startEdit(zone)">Düzenle</button>
+              <button type="button" class="btn small danger" (click)="remove(zone)">Sil</button>
+            </div>
+          </li>
+        } @empty {
+          <li class="empty">Henüz bölge yok. <strong>+ Yeni bölge</strong> ile ekleyebilirsin.</li>
+        }
+      </ul>
+    } @else if (!listError()) {
+      <p class="hint">Yükleniyor…</p>
+    }
+  } @else {
+    <h2>{{ editing() === 'new' ? 'Yeni bölge' : 'Bölgeyi düzenle' }}</h2>
+    <p class="hint">
+      Haritaya tıkla ya da ortadaki noktayı sürükle: bölge oraya taşınır. Kenardaki beyaz noktayı sürükleyerek
+      büyüt ya da küçült.
+    </p>
+
+    @if (saveError(); as error) {
+      <app-api-error-alert [error]="error" action="Bölge kaydedilemedi" />
+    }
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <label class="field">
+        Ad
+        <input formControlName="name" placeholder="Ör. Kadıköy Depo" maxlength="100" autocomplete="off" />
+        @if (invalid('name')) {
+          <span class="error">Bölgeye bir ad ver.</span>
+        }
+      </label>
+
+      <label class="field">
+        Yarıçap (metre)
+        <span class="radius">
+          <input
+            type="range"
+            aria-label="Yarıçap"
+            [min]="minRadius"
+            [max]="sliderMax"
+            step="10"
+            [value]="draft().radiusMeters"
+            (input)="setRadius(+$any($event.target).value)"
+          />
+          <input type="number" formControlName="radiusMeters" [min]="minRadius" [max]="maxRadius" step="10" />
+        </span>
+        @if (invalid('radiusMeters')) {
+          <span class="error">{{ minRadius }} ile {{ maxRadius | number }} metre arası olmalı.</span>
+        }
+      </label>
+
+      <fieldset class="field">
+        <legend>Alarm</legend>
+        <label class="check"><input type="checkbox" formControlName="alarmOnEnter" /> Araç bölgeye girince</label>
+        <label class="check"><input type="checkbox" formControlName="alarmOnExit" /> Araç bölgeden çıkınca</label>
+        @if (form.hasError('noAlarm')) {
+          <span class="error">En az birini seç: alarm vermeyen bölge işe yaramaz.</span>
+        }
+      </fieldset>
+
+      <div class="buttons">
+        <button type="button" class="btn secondary" (click)="cancel()">Vazgeç</button>
+        <button type="submit" class="btn" [disabled]="saving()">{{ saving() ? 'Kaydediliyor…' : 'Kaydet' }}</button>
+      </div>
+    </form>
+  }
+</section>
+
+<div #map class="map"></div>
