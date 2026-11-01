@@ -25,17 +25,6 @@ h1 {
     font-size: 12px;
     color: var(--muted);
   }
-
-  select,
-  input {
-    padding: 5px 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: 14px;
-  }
 }
 
 .form-error {
@@ -43,11 +32,16 @@ h1 {
   color: var(--danger);
 }
 
+// Oynatıcı: düğmeler, hız ve ilerleme çubuğu tek bir kartta
 .player {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
 
   .play {
     min-width: 110px;
@@ -69,62 +63,6 @@ h1 {
   }
 }
 
-// Hız seçimi: yan yana bitişik üç düğme, seçili olan koyu
-.speeds {
-  display: flex;
-
-  button {
-    padding: 5px 10px;
-    border: 1px solid var(--topbar);
-    background: var(--surface);
-    color: var(--topbar);
-    font: inherit;
-    cursor: pointer;
-
-    &:first-child {
-      border-radius: 6px 0 0 6px;
-    }
-
-    &:last-child {
-      border-radius: 0 6px 6px 0;
-    }
-
-    & + button {
-      border-left: none;
-    }
-
-    &.active {
-      background: var(--topbar);
-      color: #fff;
-    }
-  }
-}
-
-// İlerleme çubuğunun altındaki ince şerit: veri olan aralıklar mavi, boşluklar boş
-.data-spans {
-  position: relative;
-  height: 4px;
-  margin-top: 2px;
-  border-radius: 2px;
-  background: var(--border);
-
-  span {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    border-radius: 2px;
-    background: var(--link);
-  }
-}
-
-.skip-notice {
-  margin: 0 0 12px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: var(--bg);
-  font-size: 14px;
-}
-
 .status {
   margin: 0 0 12px;
   font-size: 14px;
@@ -138,7 +76,8 @@ h1 {
   flex: 1;
   min-height: 300px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
 }
 
 @media (max-width: 600px) {

@@ -42,7 +42,7 @@
     <button class="btn play" type="button" (click)="playing() ? pause() : play()">
       {{ playing() ? '⏸ Duraklat' : '▶ Oynat' }}
     </button>
-    <div class="speeds" role="group" aria-label="Oynatma hızı" [title]="'1x: ' + secondsPerSecond + ' saniyelik yol 1 saniyede'">
+    <div class="segmented" role="group" aria-label="Oynatma hızı" [title]="'1x: ' + secondsPerSecond + ' saniyelik yol 1 saniyede'">
       @for (s of speeds; track s) {
         <button type="button" [class.active]="speed() === s" [attr.aria-pressed]="speed() === s" (click)="speed.set(s)">
           {{ s }}x

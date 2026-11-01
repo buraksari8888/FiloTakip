@@ -6,6 +6,13 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Kayıtlı tema Angular yüklenmeden uygulanır, yoksa açık tema seçenler sayfa açılırken bir an koyu ekran görür
+       (anahtar core/theme.ts ile aynı) -->
+  <script>
+    try {
+      if (localStorage.getItem('filotakip-theme') === 'light') document.documentElement.dataset.theme = 'light';
+    } catch {}
+  </script>
 </head>
 <body>
   <app-root></app-root>

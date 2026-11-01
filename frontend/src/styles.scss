@@ -1,19 +1,57 @@
 // Bütün siteye uygulanan stiller ve renkler.
 // Renkler değişken (CSS custom property) olarak tanımlı; component'ler var(--...) ile kullanır.
+// İki tema var: koyu (varsayılan) ve açık. Hangisinin açık olduğunu <html data-theme="..."> söyler
+// (core/theme.ts değiştirir). Bileşenler sadece değişkenleri kullandığı için tema değişince hepsi kendiliğinden uyar.
+
+// Koyu tema: lacivert-arduvaz zemin, tek vurgu rengi (mavi); alarm renkleri koyu zeminde okunacak kadar parlak
 :root {
-  --bg: #f4f6f9;
+  color-scheme: dark; // tarayıcının kendi parçaları (tarih seçici, kaydırma çubuğu, açılır liste) da koyu olsun
+  --bg: #0d1420;
+  --surface: #151f2e; // kartlar, tablolar, pencereler
+  --surface-2: #1c2839; // kutuların içi, tablo başlığı, üzerine gelince
+  --border: #273449;
+  --text: #e5eaf2;
+  --muted: #8d9ab0;
+  --topbar: #0a101a;
+  --accent: #4c8dff; // ana düğmeler, seçili olanlar
+  --accent-hover: #6aa0ff;
+  --accent-soft: rgb(76 141 255 / 0.15);
+  --danger: #f26464;
+  --danger-bg: rgb(242 100 100 / 0.12);
+  --warning: #f2a93b;
+  --success: #3ecf8e;
+  --fuel-drain: #b98af5; // yakıt hırsızlığı şüphesi: hız (kırmızı) ve düşük yakıttan (turuncu) ayrı bir renk
+  --idle: #2fbfa8; // uzun rölanti
+  --geofence: #8b95ff; // bölge giriş/çıkış alarmları ve haritadaki bölgeler
+  --link: #7aa9ff;
+  --shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  // Harita altlığı (OpenStreetMap) açık renkli; koyu temada renkleri ters çevrilip kısılır.
+  // Sadece altlığa uygulanır: araçlar, izler ve alarmlar kendi renklerinde kalır.
+  --map-filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.5);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f3f5f9;
   --surface: #ffffff;
+  --surface-2: #f6f8fb;
   --border: #e2e6ec;
   --text: #1c2430;
-  --muted: #6b7686;
-  --topbar: #1f3a5f;
+  --muted: #667085;
+  --topbar: #13233a;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgb(37 99 235 / 0.1);
   --danger: #c62828;
   --danger-bg: #fdecea;
   --warning: #b26a00;
-  --fuel-drain: #7b1fa2; // yakıt hırsızlığı şüphesi: hız (kırmızı) ve düşük yakıttan (turuncu) ayrı bir renk
-  --idle: #00796b; // uzun rölanti
-  --geofence: #3949ab; // bölge giriş/çıkış alarmları ve haritadaki bölgeler
+  --success: #16a34a;
+  --fuel-drain: #7b1fa2;
+  --idle: #00796b;
+  --geofence: #3949ab;
   --link: #1a62c4;
+  --shadow: 0 10px 30px rgb(16 24 40 / 0.12);
+  --map-filter: none;
 }
 
 * {
@@ -26,20 +64,43 @@ body {
   font-size: 14px;
   background: var(--bg);
   color: var(--text);
+  accent-color: var(--accent); // kaydırma çubuğu (range), onay kutusu gibi tarayıcı parçaları
+  transition: background-color 0.2s ease;
 }
 
-// Genel buton
+// Klavyeyle gezerken odaktaki parça belli olsun (fareyle tıklayınca çerçeve çıkmaz)
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+// Genel buton: vurgu renginde. Çeşitleri: .secondary (sade), .danger (silme gibi), .small (tablo satırında)
 .btn {
-  padding: 6px 12px;
-  border: 1px solid var(--topbar);
-  border-radius: 6px;
-  background: var(--topbar);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
   color: #fff;
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
 
   &:hover:not(:disabled) {
-    filter: brightness(1.15);
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
   }
 
   &:disabled {
@@ -49,22 +110,87 @@ body {
 
   &.small {
     padding: 3px 10px;
+    border-radius: 6px;
     font-size: 12px;
   }
+
+  &.secondary {
+    border-color: var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+
+    &:hover:not(:disabled) {
+      border-color: var(--muted);
+      background: var(--surface-2);
+    }
+  }
+
+  &.danger {
+    border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+    background: transparent;
+    color: var(--danger);
+
+    &:hover:not(:disabled) {
+      border-color: var(--danger);
+      background: var(--danger-bg);
+    }
+  }
+}
+
+// Bitişik düğme grubu (ör. "Tümü / Okunmamış", oynatma hızı): seçili olan vurgu renginde
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+
+  button {
+    padding: 5px 12px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      color: var(--text);
+    }
+
+    &.active {
+      background: var(--accent);
+      color: #fff;
+    }
+  }
+}
+
+// Sayfa başlıkları
+h1 {
+  letter-spacing: -0.01em;
 }
 
 // Açılır pencere (tarayıcının kendi <dialog> elemanı): yeni araç ve sürücü pencereleri
 dialog.dialog {
   width: min(480px, calc(100vw - 32px));
-  padding: 20px;
-  border: none;
-  border-radius: 10px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 8px 32px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow);
+
+  &[open] {
+    animation: dialog-in 0.18s ease-out;
+  }
 
   &::backdrop {
-    background: rgb(0 0 0 / 0.4);
+    background: rgb(5 9 16 / 0.6);
+    backdrop-filter: blur(3px);
   }
 
   h2 {
@@ -74,7 +200,11 @@ dialog.dialog {
 
   h3 {
     margin: 20px 0 8px;
-    font-size: 15px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
   }
 
   .buttons {
@@ -89,27 +219,50 @@ dialog.dialog {
   }
 }
 
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+// Form kutuları (pencerelerdeki ve sayfalardaki giriş alanları aynı görünsün)
+input:not([type='range']),
+select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--muted);
+  }
+
+  &:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  &::placeholder {
+    color: var(--muted);
+  }
+}
+
 // Form alanı: üstte etiket, altta kutu, hata varsa altında kırmızı açıklama.
 // İki alan yan yana: <div class="row"><label class="field">...</label><label class="field">...</label></div>
 .field {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   margin-bottom: 12px;
   font-size: 13px;
   color: var(--muted);
-
-  input,
-  select {
-    padding: 6px 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: 14px;
-  }
 
   .error {
     color: var(--danger);
@@ -122,24 +275,13 @@ dialog.dialog {
   gap: 12px;
 }
 
-.btn.secondary {
-  border-color: var(--border);
-  background: var(--surface);
-  color: var(--text);
-}
-
-.btn.danger {
-  border-color: var(--danger);
-  background: var(--surface);
-  color: var(--danger);
-}
-
 // Ortak tablo görünümü (araç ve alarm listeleri). Kullanım: <div class="table-wrap"><table>...</table></div>
 .table-wrap {
   overflow-x: auto; // dar ekranda tablo kendi içinde kaysın
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 
   table {
     width: 100%;
@@ -149,20 +291,30 @@ dialog.dialog {
 
   th,
   td {
-    padding: 10px 14px;
+    padding: 11px 14px;
     text-align: left;
     border-bottom: 1px solid var(--border);
   }
 
   th {
-    font-size: 12px;
+    background: var(--surface-2);
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--muted);
   }
 
-  tbody tr:last-child td {
-    border-bottom: none;
+  tbody tr {
+    transition: background-color 0.12s ease;
+
+    &:hover {
+      background: var(--surface-2);
+    }
+
+    &:last-child td {
+      border-bottom: none;
+    }
   }
 
   // Tablodaki bağlantılar (ör. "Haritada göster")
@@ -177,43 +329,134 @@ dialog.dialog {
   }
 }
 
-// Haritadaki araç işareti. Leaflet bu HTML'i kendisi oluşturduğu için stili burada (genel dosyada) olmalı.
+// ---------- Harita (Leaflet) ----------
+// Leaflet bu parçaları kendisi oluşturduğu için stilleri burada (genel dosyada) olmalı.
+
+// Harita altlığı: koyu temada renkleri ters çevrilir (--map-filter)
+.leaflet-tile-pane {
+  filter: var(--map-filter);
+}
+
+.leaflet-container {
+  background: var(--bg);
+  font: inherit;
+}
+
+// Yakınlaştırma düğmeleri ve kaynak yazısı temaya uysun
+.leaflet-bar a {
+  border-bottom-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+
+  &:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+}
+
+.leaflet-bar {
+  border: 1px solid var(--border) !important; // Leaflet'in kendi kenarlığını ezer
+  box-shadow: var(--shadow) !important;
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 85%, transparent) !important;
+  color: var(--muted);
+
+  a {
+    color: var(--link);
+  }
+}
+
+// Bilgi balonu
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.leaflet-popup-content-wrapper {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--muted);
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.leaflet-popup-content {
+  font-size: 13px;
+  line-height: 1.5;
+
+  small {
+    color: var(--muted);
+  }
+
+  .danger {
+    color: var(--danger);
+    font-weight: 600;
+  }
+
+  .warning {
+    color: var(--warning);
+    font-weight: 600;
+  }
+}
+
+// Haritadaki araç işareti: vurgu renginde nokta, hız sınırını aşınca kırmızı ve nabız gibi atan halka
 .vehicle-marker {
-  background: var(--topbar);
+  background: var(--accent);
   border: 2px solid #fff;
   border-radius: 50%;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+  box-shadow: 0 0 0 4px var(--accent-soft), 0 1px 4px rgb(0 0 0 / 0.5);
 
   .label {
     position: absolute;
     left: 16px;
     top: 50%;
     transform: translateY(-50%);
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: #fff;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
     color: var(--text);
   }
 
   &.speeding {
     background: var(--danger);
+    animation: speeding-pulse 1.4s ease-out infinite;
 
     .label {
+      border-color: var(--danger);
       color: var(--danger);
     }
   }
 }
 
-// Geçmiş rota oynatmada durak işareti: mavi kare içinde "P" (otopark tabelası gibi)
+@keyframes speeding-pulse {
+  from {
+    box-shadow: 0 0 0 0 rgb(242 100 100 / 0.6), 0 1px 4px rgb(0 0 0 / 0.5);
+  }
+  to {
+    box-shadow: 0 0 0 12px rgb(242 100 100 / 0), 0 1px 4px rgb(0 0 0 / 0.5);
+  }
+}
+
+// Geçmiş rota oynatmada durak işareti: vurgu renginde kare içinde "P" (otopark tabelası gibi)
 .stop-marker {
   border: 2px solid #fff;
   border-radius: 4px;
-  background: var(--link);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -229,26 +472,12 @@ path.geofence {
 
 // Bölgenin adı (dairenin ortasında sürekli görünen yazı)
 .leaflet-tooltip.geofence-label {
-  padding: 1px 6px;
-  border: none;
-  background: rgb(255 255 255 / 0.85);
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--geofence) 40%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
   box-shadow: none;
   color: var(--geofence);
   font-size: 11px;
   font-weight: 600;
-}
-
-.leaflet-popup-content {
-  font-size: 13px;
-  line-height: 1.5;
-
-  .danger {
-    color: var(--danger);
-    font-weight: 600;
-  }
-
-  .warning {
-    color: var(--warning);
-    font-weight: 600;
-  }
 }

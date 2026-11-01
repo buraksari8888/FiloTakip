@@ -88,6 +88,8 @@ Arayüz: <http://localhost:4200>
 | Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster", "Geçmiş", "Sürücü" ve "Sil". Arama kutusu plaka, marka, model, tür ve sürücü adında arar: büyük/küçük harf, Türkçe harfler ve boşluklar önemsiz ("yilmaz" "Yılmaz"ı, "34abc" "34 ABC 123"ü bulur), her kelime bir alanda geçmeli ("ford ahmet"). Ayrıntılar aşağıda (Araç yönetimi) |
 | Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme, silme; her satırda "Haritada göster" |
 
+Arayüz varsayılan olarak koyu temada açılır; üst menünün sağındaki ☀ / ☾ düğmesi açık temaya geçirir (seçim tarayıcıda hatırlanır). Koyu temada harita altlığının renkleri ters çevrilip kısılır, araçlar ve izler kendi renklerinde kalır. Canlı haritada araçlar yeni konumlarına ışınlanmak yerine 1 saniyede kayar; hız sınırını aşan aracın işareti kırmızı ve nabız gibi atar. Araçlar sayfasının üstündeki kartlar filonun anlık durumunu gösterir (araç sayısı, hareket halinde, hız ihlali, düşük yakıt).
+
 #### Araç yönetimi
 
 - **Yeni araç:** plaka, tür (Otomobil / Hafif ticari / Kamyon-Tır / Otobüs), marka, model, model yılı, araç hız
@@ -366,7 +368,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `geofences/` | Bölge modeli ve API servisi (bölgeler haritada çizilir) |
 | `drivers/` | Sürücü modeli ve API servisi (sürücü penceresi `vehicles/driver-dialog/` içinde) |
 | `map/` | Leaflet kullanan sayfalar (ayrı dosyalarda, sadece açılınca yüklenir): canlı harita (`vehicle-map/`), geçmiş rota oynatma (`route-playback/`); ortak harita parçaları `map-helpers.ts` |
-| `core/` | Bütün uygulamanın paylaştığı tekil servisler (API'ye canlı bağlantı: `LiveHub`) |
+| `core/` | Bütün uygulamanın paylaştığı tekil servisler (API'ye canlı bağlantı: `LiveHub`, koyu/açık tema: `ThemeService`) |
 | `shared/` | Birden fazla sayfanın kullandığı parçalar (hataya göre mesaj gösteren API hata kutusu) |
 
 ### simulator

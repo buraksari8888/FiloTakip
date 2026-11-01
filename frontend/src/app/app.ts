@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { LiveAlarms } from './alarms/live-alarms';
 import { LiveHub, LiveStatus } from './core/live-hub';
+import { ThemeService } from './core/theme';
 
 // Üst menüdeki canlı bağlantı göstergesinin yazısı ve açıklaması (fareyle üstüne gelince)
 const LIVE_STATUS_TEXT: Record<LiveStatus, { label: string; title: string }> = {
@@ -24,4 +25,5 @@ export class App {
   protected readonly unreadAlarms = inject(LiveAlarms).unreadCount;
   protected readonly liveStatus = inject(LiveHub).status;
   protected readonly liveStatusText = LIVE_STATUS_TEXT;
+  protected readonly theme = inject(ThemeService);
 }
