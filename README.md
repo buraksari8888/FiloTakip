@@ -221,6 +221,7 @@ cd frontend; ng test --watch=false          # Angular testleri
 | Arayüzün kullandığı API adresleri | `frontend/src/environments/environment.development.ts` → `apiUrl`, `hubUrl` (canlı bildirim) |
 | Simülatörün kullandığı API adresi | `--api-url` ya da `FILOTAKIP_API_URL` ortam değişkeni (varsayılan `http://localhost:5275`) |
 | API'nin log seviyeleri | `backend/FiloTakip.Api/appsettings.json` → `Logging:LogLevel` |
+| API'nin log dosyaları | `backend/FiloTakip.Api/appsettings.json` → `LogFiles:Directory` (varsayılan `logs`), `LogFiles:RetainedFileCount` (kaç dosya saklanır, varsayılan 14) |
 | Simülatörün log seviyesi | `--log-level` (varsayılan `INFO`) |
 
 ## Loglar
@@ -249,6 +250,26 @@ $env:Logging__LogLevel__FiloTakip = "Debug"
 dotnet run
 ```
 
+### Log dosyaları
+
+API, terminale yazdığı her satırı ayrıca günlük bir dosyaya da yazar ([Serilog](https://serilog.net/) ile).
+Terminal kapanınca loglar kaybolmaz; "dün öğlen ne oldu?" sorusuna sonradan bakılabilir.
+
+- **Yer:** `backend/FiloTakip.Api/logs/`. Her gün yeni bir dosya açılır: `api-20261101.log`, `api-20261102.log`…
+  Bir günün dosyası 50 MB'ı geçerse `api-20261101_001.log` ile devam eder. Aynı anda iki API çalışıyorsa ikincisi
+  de `_001` dosyasına yazar (ilk dosya diğerinde açık).
+- **Saklama:** En yeni 14 dosya kalır, eskileri kendiliğinden silinir.
+- **İçerik:** Terminaldekiyle aynı satırlar (aynı `Logging:LogLevel` ayarı), tarih ve milisaniyeyle:
+
+  ```text
+  2026-11-01 14:03:12.418 INF FiloTakip.Api.Services.LocationService: Alarm #47 (SpeedLimit): 34 ABC 123 Hız sınırı aşıldı: 98,5 km/s (araç sınırı 90)
+  2026-11-01 14:05:40.027 ERR FiloTakip.Api.Errors.GlobalExceptionHandler: Beklenmeyen hata: GET /api/vehicles (traceId 00-76b5f595…-00)
+  ```
+
+- **Hata arama:** Arayüzde çıkan "Hata kodu"nu (traceId) dosyada arat (VS Code'da dosyayı açıp Ctrl+F); hatanın
+  ayrıntısı (exception) o satırın altındadır.
+- Log dosyaları her bilgisayarın kendisinde kalır, GitHub'a yüklenmez (`.gitignore`).
+
 Simülatör de aynı biçimde yazar: `14:03:12 INFO    34 ABC 123   #8040  41.01595, 28.98611   67.3 km/s ...`.
 Hız ihlali simülatör için normal bir olay olduğundan INFO seviyesinde, `⚠️ HIZ SINIRI AŞILDI` işaretiyle yazılır.
 Konum gönderilemezse ERROR yazılır. `--log-level ERROR` sadece sorunları, `--log-level DEBUG` HTTP isteklerini de gösterir.
@@ -268,7 +289,8 @@ API bütün hataları aynı biçimde döner (ProblemDetails, RFC 9457):
 | 500 | Beklenmeyen hata (ör. veritabanı kapalı). Kullanıcıya ayrıntı gösterilmez, ayrıntı API'nin logundadır |
 
 **Hata kodu (traceId) ile hatayı bulmak:** Arayüz sunucu hatalarında "Hata kodu: 00-..." gösterir, simülatör de
-aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (yığın izi dahil) bulunur.
+aynı numarayı yazar. Bu numara API'nin terminalinde ya da [log dosyasında](#log-dosyaları) aratılırsa hatanın
+tamamı (yığın izi dahil) bulunur.
 
 - **Arayüz:** API'ye hiç ulaşılamıyorsa "API'ye ulaşılamıyor", API cevap verip hata döndüyse "Sunucuda bir hata
   oluştu" ve hata kodu gösterilir. Alarmı okundu işaretleme başarısız olursa hangi işlemin başarısız olduğu yazar.

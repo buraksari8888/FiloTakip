@@ -3,6 +3,8 @@ bin/
 obj/
 *.user
 .vs/
+# API'nin log dosyaları (her bilgisayarda kendi logları; GitHub'a gitmez)
+logs/
 
 # Angular / Node
 node_modules/
