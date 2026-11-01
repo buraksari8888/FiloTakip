@@ -10,6 +10,18 @@
   }
 
   @if (currentDriver(); as current) {
+    <h3>Şu anki sürücü</h3>
+    <div class="current-driver">
+      <span>
+        <strong>{{ current.firstName }} {{ current.lastName }}</strong>
+        <small>Ehliyet {{ current.licenseNumber }}</small>
+      </span>
+      <button type="button" class="btn small danger" [disabled]="saving()" (click)="removeDriver(current)">
+        Araçtan çıkar
+      </button>
+    </div>
+    <p class="hint">İşten ayrıldı, kiralama süresi doldu…: araç sürücüsüz kalır. Sürücünün kaydı silinmez, sonra başka bir araca atanabilir.</p>
+
     <h3>Adı düzelt</h3>
     <form [formGroup]="nameForm" (ngSubmit)="saveName()">
       <div class="row">
@@ -34,16 +46,13 @@
   }
 
   @if (drivers() !== null) {
-    <h3>{{ currentDriver() ? 'Sürücüyü değiştir' : 'Sürücü ata' }}</h3>
+    <h3>{{ currentDriver() ? 'Başka sürücüye ver' : 'Sürücü ata' }}</h3>
     <label class="field">
       Yeni sürücü
       <select (change)="choice.set($any($event.target).value)">
         <option value="" disabled [selected]="choice() === ''">Seç</option>
         @for (d of otherDrivers(); track d.driverId) {
           <option [value]="d.driverId">{{ driverLabel(d) }}</option>
-        }
-        @if (currentDriver()) {
-          <option value="none">Sürücüsüz bırak</option>
         }
         <option value="new">+ Yeni sürücü ekle</option>
       </select>

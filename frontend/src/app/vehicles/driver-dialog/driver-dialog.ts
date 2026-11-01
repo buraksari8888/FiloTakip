@@ -9,12 +9,14 @@ import { LiveVehicles } from '../live-vehicles';
 import { VehicleApi } from '../vehicle-api';
 import { VehicleLastLocation } from '../vehicle-last-location';
 
-// Sürücü penceresi, iki ayrı işlem:
+// Sürücü penceresi, üç ayrı işlem:
+// - Araçtan çıkar: sürücü işten ayrıldı, kiralama bitti... araç sürücüsüz kalır (sürücü kaydı silinmez)
 // - Adı düzelt: sürücünün adındaki yazım hatası (aynı kişi; sürücünün kaydı güncellenir)
-// - Sürücüyü değiştir: araç başka birine verildi (mevcut bir sürücü, yeni sürücü ya da sürücüsüz)
+// - Başka sürücüye ver: araç başka birine verildi (mevcut bir sürücü ya da yeni sürücü)
 @Component({
   imports: [ApiErrorAlert, ReactiveFormsModule],
   selector: 'app-driver-dialog',
+  styleUrl: './driver-dialog.scss',
   templateUrl: './driver-dialog.html',
 })
 export class DriverDialog {
@@ -42,7 +44,7 @@ export class DriverDialog {
     lastName: ['', [Validators.required, Validators.maxLength(50)]],
   });
 
-  // Sürücü değiştirme seçimi: 'none' = sürücüsüz, 'new' = yeni sürücü, sayı = mevcut sürücünün numarası
+  // Sürücü değiştirme seçimi: 'new' = yeni sürücü, sayı = mevcut sürücünün numarası
   protected readonly choice = signal<string>('');
   protected readonly newDriverForm = this.fb.group({
     firstName: ['', [Validators.required, Validators.maxLength(50)]],
@@ -79,6 +81,17 @@ export class DriverDialog {
     this.run('Ad düzeltilemedi', this.driverApi.updateName(current.driverId, firstName, lastName));
   }
 
+  // Sürücüyü araçtan çıkarır, araç sürücüsüz kalır. Kaza ile basılmasın diye önce sorulur.
+  protected removeDriver(current: Driver): void {
+    const question =
+      `${current.firstName} ${current.lastName}, ${this.vehicle().plate} aracından çıkarılsın mı?\n\n` +
+      'Araç sürücüsüz kalır. Sürücünün kaydı silinmez, sonra başka bir araca atanabilir.';
+    if (!confirm(question)) {
+      return;
+    }
+    this.run('Sürücü araçtan çıkarılamadı', this.vehicleApi.assignDriver(this.vehicle().vehicleId, null));
+  }
+
   protected saveAssignment(): void {
     const vehicleId = this.vehicle().vehicleId;
     const choice = this.choice();
@@ -96,7 +109,7 @@ export class DriverDialog {
           .pipe(switchMap((created) => this.vehicleApi.assignDriver(vehicleId, created.driverId))),
       );
     } else if (choice !== '') {
-      this.run('Sürücü değiştirilemedi', this.vehicleApi.assignDriver(vehicleId, choice === 'none' ? null : +choice));
+      this.run('Sürücü değiştirilemedi', this.vehicleApi.assignDriver(vehicleId, +choice));
     }
   }
 
