@@ -12,6 +12,7 @@
   --warning: #b26a00;
   --fuel-drain: #7b1fa2; // yakıt hırsızlığı şüphesi: hız (kırmızı) ve düşük yakıttan (turuncu) ayrı bir renk
   --idle: #00796b; // uzun rölanti
+  --geofence: #3949ab; // bölge giriş/çıkış alarmları ve haritadaki bölgeler
   --link: #1a62c4;
 }
 
@@ -124,6 +125,23 @@ body {
       color: var(--danger);
     }
   }
+}
+
+// Haritadaki bölge dairesi (Leaflet'in SVG çizimi). Renk Leaflet'e değil buraya yazılı: alarm etiketiyle aynı değişken.
+path.geofence {
+  stroke: var(--geofence);
+  fill: var(--geofence);
+}
+
+// Bölgenin adı (dairenin ortasında sürekli görünen yazı)
+.leaflet-tooltip.geofence-label {
+  padding: 1px 6px;
+  border: none;
+  background: rgb(255 255 255 / 0.85);
+  box-shadow: none;
+  color: var(--geofence);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .leaflet-popup-content {

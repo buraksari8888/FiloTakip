@@ -29,7 +29,7 @@ public class AlarmService(
         a.Location == null ? null : a.Location.Latitude,
         a.Location == null ? null : a.Location.Longitude);
 
-    // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt, yakıt hırsızlığı, rölanti). KAYDETMEZ: kaydetme işini çağıran yapar,
+    // Yeni gelen konum için gereken alarmları ekler (hız, düşük yakıt, yakıt hırsızlığı, rölanti, bölge). KAYDETMEZ: kaydetme işini çağıran yapar,
     // böylece konum ve alarmlar tek SaveChanges ile birlikte kaydedilir (ya hepsi ya hiçbiri).
     // previous: aracın bir önceki konumu (ilk konumuysa null). Eklenen alarmları döner, çoğu zaman boş liste.
     public async Task<List<Alarm>> AddAlarmsIfNeededAsync(
@@ -77,8 +77,29 @@ public class AlarmService(
             added.Add(AddAlarm(location, AlarmTypes.Idle, AlarmRules.IdleMessage(location.RecordedAt - idleSince)));
         }
 
+        // Bölge: önceki konum dışarıda, bu konum içerideyse araç bölgeye girmiştir (ya da tersi: çıkmıştır).
+        // Aracın ilk konumunda karşılaştıracak bir şey yok: bölgenin içinde açılan araç için "girdi" denmez.
+        if (previous is not null)
+        {
+            foreach (var zone in await GetActiveGeofencesAsync(cancellationToken))
+            {
+                var wasInside = AlarmRules.IsInsideGeofence(zone, previous.Latitude, previous.Longitude);
+                var isInside = AlarmRules.IsInsideGeofence(zone, location.Latitude, location.Longitude);
+                if (AlarmRules.GeofenceAlarmType(zone, wasInside, isInside) is string alarmType)
+                    added.Add(AddAlarm(location, alarmType, AlarmRules.GeofenceMessage(alarmType, zone.Name)));
+            }
+        }
+
         return added;
     }
+
+    // Bütün aktif bölgeler. Tablo küçük (birkaç düzine satır), her konumda okumak sorun değil;
+    // binlerce araçta bunu önbelleğe (IMemoryCache) almak gerekirdi.
+    private Task<List<Geofence>> GetActiveGeofencesAsync(CancellationToken cancellationToken) =>
+        db.Geofences
+            .AsNoTracking()
+            .Where(g => g.IsActive)
+            .ToListAsync(cancellationToken);
 
     // Araç 5 dakikadan uzun süredir rölantideyse rölantinin başladığı anı döner, yoksa null.
     // Bu rölantide zaten alarm verildiyse de null: rölanti başına tek alarm.

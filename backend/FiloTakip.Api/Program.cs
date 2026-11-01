@@ -16,6 +16,7 @@ builder.Services.AddDbContext<FiloTakipDbContext>(options =>
 builder.Services.AddScoped<VehicleService>();
 builder.Services.AddScoped<LocationService>();
 builder.Services.AddScoped<AlarmService>();
+builder.Services.AddScoped<GeofenceService>();
 
 // CORS: tarayıcı, Angular'ın (localhost:4200) bu API'ye (localhost:5275) istek atmasına
 // ancak API izin verirse izin verir. İzinli adresler: appsettings > Cors > AllowedOrigins

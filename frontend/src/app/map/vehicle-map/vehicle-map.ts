@@ -18,6 +18,8 @@ import { catchError, filter, of, scan, startWith, switchMap } from 'rxjs';
 import { Alarm } from '../../alarms/alarm';
 import { AlarmApi } from '../../alarms/alarm-api';
 import { LiveHub, LocationUpdate } from '../../core/live-hub';
+import { Geofence, geofenceAlarmText } from '../../geofences/geofence';
+import { GeofenceApi } from '../../geofences/geofence-api';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
 import { VehicleApi } from '../../vehicles/vehicle-api';
@@ -26,6 +28,7 @@ import { recentTrail, TRAIL_MINUTES, trailSegments } from './trail';
 
 const ISTANBUL: L.LatLngTuple = [41.03, 28.98];
 const FOCUS_ZOOM = 16; // tek bir araca ya da alarma yakınlaşırken (sokak düzeyi)
+const GEOFENCE_PANE = 'geofences';
 
 // Adresteki ?arac=3 / ?alarm=46 değerini sayıya çevirir; yoksa ya da geçersizse (ör. ?arac=abc) yok sayar
 function toId(value: string | undefined): number | undefined {
@@ -43,6 +46,7 @@ export class VehicleMap {
   private readonly live = inject(LiveVehicles);
   private readonly alarmApi = inject(AlarmApi);
   private readonly vehicleApi = inject(VehicleApi);
+  private readonly geofenceApi = inject(GeofenceApi);
   private readonly hub = inject(LiveHub);
   private readonly locale = inject(LOCALE_ID);
   private readonly mapElement = viewChild.required<ElementRef<HTMLDivElement>>('map');
@@ -110,10 +114,24 @@ export class VehicleMap {
     { initialValue: [] },
   );
 
+  protected readonly geofenceError = signal<HttpErrorResponse | null>(null);
+
+  // Bölgeler sayfa açılınca bir kez çekilir (sık değişmezler)
+  private readonly geofences = toSignal(
+    this.geofenceApi.getGeofences().pipe(
+      catchError((error: HttpErrorResponse) => {
+        this.geofenceError.set(error);
+        return of([]);
+      }),
+    ),
+    { initialValue: [] },
+  );
+
   private readonly map = signal<L.Map | null>(null);
   private readonly markers = new Map<number, L.Marker>(); // aracın numarası -> haritadaki işareti
   private alarmMarker: L.CircleMarker | null = null;
   private trailLayer: L.LayerGroup | null = null; // izin parçaları (soluktan koyuya)
+  private geofenceLayer: L.LayerGroup | null = null; // bölge daireleri ve adları
   // En son neye yakınlaştırıldı ("hepsi", "arac-3", "alarm-46"). Aynı hedefe bir kez yakınlaştırılır:
   // her canlı güncellemede tekrar yakınlaştırsak kullanıcının kaydırdığı harita geri zıplardı.
   private zoomedTo: string | null = null;
@@ -126,6 +144,8 @@ export class VehicleMap {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> katkıcıları',
       }).addTo(map);
+      // Bölgeler için ayrı katman: çizgilerin (iz, 400) ve araç işaretlerinin (600) altında kalsın, onları örtmesin
+      map.createPane(GEOFENCE_PANE).style.zIndex = '350';
       this.map.set(map);
     });
 
@@ -144,6 +164,14 @@ export class VehicleMap {
       const map = this.map();
       if (map) {
         this.showAlarm(map, this.alarm());
+      }
+    });
+
+    // Bölgeler API'den gelince çiz
+    effect(() => {
+      const map = this.map();
+      if (map) {
+        this.drawGeofences(map, this.geofences());
       }
     });
 
@@ -243,6 +271,31 @@ export class VehicleMap {
     for (const segment of trailSegments(points, TRAIL_MINUTES)) {
       const latLngs = segment.points.map((p): L.LatLngTuple => [p.latitude, p.longitude]);
       L.polyline(latLngs, { color: trailColor(segment.fade), weight: 4, opacity: 1 }).addTo(this.trailLayer);
+    }
+  }
+
+  // Bölgeler: kesik çizgili daire, ortasında adı ve hangi geçişte alarm verdiği.
+  // interactive: false -> dairenin üstüne tıklamak, altındaki haritayı sürüklemeyi ya da araca tıklamayı engellemesin
+  private drawGeofences(map: L.Map, zones: Geofence[]): void {
+    this.geofenceLayer ??= L.layerGroup().addTo(map);
+    this.geofenceLayer.clearLayers();
+    for (const zone of zones) {
+      L.circle([zone.latitude, zone.longitude], {
+        radius: zone.radiusMeters, // metre: harita yakınlaştıkça daire de büyür
+        pane: GEOFENCE_PANE,
+        className: 'geofence', // renk styles.scss'te
+        weight: 2,
+        dashArray: '6 4',
+        fillOpacity: 0.12,
+        interactive: false,
+      })
+        .bindTooltip(`${escapeHtml(zone.name)}<br>${geofenceAlarmText(zone)}`, {
+          permanent: true,
+          direction: 'center',
+          className: 'geofence-label',
+          pane: GEOFENCE_PANE,
+        })
+        .addTo(this.geofenceLayer);
     }
   }
 

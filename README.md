@@ -3,7 +3,7 @@
 Araç filosu takip sistemi. Staj öncesi pratik projesi.
 
 Araçlardaki GPS cihazlarını taklit eden bir simülatör, konumları API'ye gönderir. API konumları
-veritabanına kaydeder, hız sınırı aşılınca, yakıt azalınca ya da araç uzun süre rölantide kalınca alarm üretir. Web arayüzü araçları canlı olarak haritada
+veritabanına kaydeder, hız sınırı aşılınca, yakıt azalınca, araç uzun süre rölantide kalınca ya da bir bölgeye girip çıkınca alarm üretir. Web arayüzü araçları canlı olarak haritada
 ve listede gösterir.
 
 ```text
@@ -46,8 +46,13 @@ sqlcmd -S localhost -E -C -i 03_reports.sql
 > `01_schema.sql` veritabanını silip baştan oluşturur. Çalıştırmadan önce API'yi durdur.
 > Sonra diğer ikisini de tekrar çalıştır (`03_reports.sql` rapor yordamını oluşturur).
 >
-> Veritabanın yakıt hırsızlığı alarmından önce oluşturulduysa ve verilerini silmek istemiyorsan
-> `01_schema.sql` yerine sadece bunu çalıştır: `sqlcmd -S localhost -E -C -i 04_fuel_drain.sql`
+> Veritabanın daha eski bir sürümle oluşturulduysa ve verilerini silmek istemiyorsan `01_schema.sql` yerine
+> güncelleme betiklerini sırayla çalıştır (birden fazla çalıştırmak zararsız):
+>
+> ```powershell
+> sqlcmd -S localhost -E -C -i 04_fuel_drain.sql   # yakıt hırsızlığı alarmı
+> sqlcmd -S localhost -E -C -i 05_geofences.sql    # bölgeler ve bölge alarmları
+> ```
 
 ### 2. API
 
@@ -71,7 +76,7 @@ Arayüz: <http://localhost:4200>
 
 | Sayfa | Adres | İçerik |
 | --- | --- | --- |
-| Harita | `/harita` | Bütün araçlar canlı olarak haritada. Bir araca tıklanınca son 30 dakikada geçtiği yol mavi çizgiyle gösterilir: iz yeni konum geldikçe uzar, eski kısmı soluk çizilir, 2 dakikadan uzun boşluk ya da 2 km'den büyük sıçramada kopar |
+| Harita | `/harita` | Bütün araçlar canlı olarak haritada. Bir araca tıklanınca son 30 dakikada geçtiği yol mavi çizgiyle gösterilir: iz yeni konum geldikçe uzar, eski kısmı soluk çizilir, 2 dakikadan uzun boşluk ya da 2 km'den büyük sıçramada kopar. Bölgeler kesik çizgili lacivert daire olarak çizilir; ortasında adı ve hangi geçişte alarm verdiği yazar |
 | | `/harita?arac=3` | O araca yakınlaşır, bilgi balonunu ve izini açar |
 | | `/harita?alarm=46` | Alarmın olduğu yeri kırmızı halkayla gösterir (aracın şu anki yeri değil) |
 | Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster" |
@@ -116,6 +121,11 @@ Araçlar duraklarda ara sıra durur. Bazı duruşlarda bir senaryo oynanır:
 | Uzun rölanti | Duruşların %3'ü | Motor çalışır halde 110-160 adım beklenir (3 saniyelik aralıkla 5,5-8 dakika); 5. dakikada API rölanti alarmı üretir | `🕒 MOTOR ÇALIŞIR HALDE UZUN BEKLEME BAŞLADI` |
 
 Rölanti süresi gerçek saatle ölçüldüğü için `--speedup` bu beklemeyi kısaltmaz.
+
+Örnek bölgeler (`02_seed.sql`) üç rotanın ucunda: Yeşilköy Depo (sahil yolu), Sarıyer Teslimat Noktası
+(Boğaz Avrupa), Beykoz Şantiye (Boğaz Anadolu). Araçlar rotanın ucunda dönüp geri geldiği için bu bölgelere
+girip çıkarlar. `--speedup 10` ile araçlar rotalarını birkaç dakikada bir baştan sona gittiğinden bölge
+alarmları sık gelir (filoda saatte ~30); gerçek zamanda bunun onda biri olur.
 
 Araçlar `routes.json` dosyasındaki gerçek yollar üzerinde gider. Rotaları değiştirirsen
 `python build_routes.py` ile yeniden oluştur. Bu komut OSRM yol tarifi servisine internetten istek atar.
@@ -190,7 +200,7 @@ API'nin terminalindeki her satır saat, seviye ve kaynakla (logu yazan sınıf) 
 | Seviye | API ne zaman yazar |
 | --- | --- |
 | Debug (normalde gizli) | Her kaydedilen konum |
-| Information | Alarm üretildi (hız, düşük yakıt, yakıt kaybı, rölanti), alarm(lar) okundu işaretlendi |
+| Information | Alarm üretildi (hız, düşük yakıt, yakıt kaybı, rölanti, bölge giriş/çıkış), alarm(lar) okundu işaretlendi |
 | Warning | Olmayan bir araç için konum geldi |
 
 Seviyeler `appsettings.json` → `Logging:LogLevel` içinde, kaynağa göre ayarlanır. EF Core'un SQL sorguları
@@ -245,6 +255,7 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `GET /api/alarms/unread-count` | Okunmamış alarm sayısı |
 | `POST /api/alarms/{id}/read` | Alarmı okundu işaretler |
 | `POST /api/alarms/read-all` | Bütün alarmları okundu işaretler |
+| `GET /api/geofences` | Aktif bölgeler (merkez, yarıçap, girişte/çıkışta alarm) |
 | `/hubs/live` | Canlı bildirim kanalı (SignalR, WebSocket), bkz. [Canlı güncelleme](#canlı-güncelleme-signalr) |
 
 ## Canlı güncelleme (SignalR)
@@ -280,6 +291,13 @@ kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi
   Kırmızı ışık ya da kısa bekleme normaldir; bu durum 5 dakika sürerse alarm üretilir. Süre konum kayıtlarının
   saatine göre ölçülür. Araç hareket edince ya da kontak kapanınca rölanti biter, sonraki rölanti yeniden
   sayılır. Rölanti başına tek alarm üretilir. Kontak kapalı park halinde alarm yoktur.
+- **Bölge alarmı (geofence):** Bölge, merkezi ve yarıçapı olan bir dairedir; bütün araçlar için geçerlidir.
+  Aracın önceki konumu bölgenin dışında, yeni konumu içindeyse "bölgeye giriş", tersiyse "bölgeden çıkış"
+  alarmı üretilir. Araç bölgenin içinde ya da dışında kaldıkça yeni alarm üretilmez. Her bölge için hangi
+  geçişte alarm istendiği ayrı seçilir (ör. depo için sadece çıkış, müşteri için sadece varış). Aracın ilk
+  konumu bölgenin içindeyse alarm yoktur (karşılaştıracak önceki konum yok). Konumlar arasında araç
+  bölgenin içinden geçip çıkmışsa (iki konum da dışarıda) bu fark edilmez; bölge yarıçapı, cihazın iki konum
+  arasında gittiği yoldan büyük seçilmelidir.
 - **Liste ve harita:** Hız sınırın üstündeyse araç toleranssız olarak kırmızı, yakıt %15'in altındaysa turuncu gösterilir.
 
 ## Proje yapısı
@@ -304,6 +322,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | --- | --- |
 | `vehicles/` | Araç modeli, API servisi, canlı veri, araç listesi sayfası |
 | `alarms/` | Alarm modeli, API servisi, okunmamış sayısı, alarm listesi sayfası |
+| `geofences/` | Bölge modeli ve API servisi (bölgeler haritada çizilir) |
 | `map/` | Leaflet haritası sayfası (ayrı dosyada, sadece bu sayfa açılınca yüklenir) |
 | `core/` | Bütün uygulamanın paylaştığı tekil servisler (API'ye canlı bağlantı: `LiveHub`) |
 | `shared/` | Birden fazla sayfanın kullandığı parçalar (hataya göre mesaj gösteren API hata kutusu) |
@@ -329,9 +348,10 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | Dosya | Görevi |
 | --- | --- |
 | `01_schema.sql` | Veritabanı, tablolar, index'ler, view (veritabanını silip baştan oluşturur) |
-| `02_seed.sql` | Örnek sürücüler ve araçlar |
+| `02_seed.sql` | Örnek sürücüler, araçlar ve bölgeler |
 | `03_reports.sql` | Rapor saklı yordamı (`usp_DailyFleetReport`) |
 | `04_fuel_drain.sql` | Var olan veritabanına yakıt kaybı alarm türünü ekler (veriyi silmeden) |
+| `05_geofences.sql` | Var olan veritabanına bölgeler tablosunu, örnek bölgeleri ve bölge alarm türlerini ekler (veriyi silmeden) |
 
 ## Tablolar
 
@@ -339,5 +359,6 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 - **Vehicles**: araçlar (plaka, hız sınırı, atanmış sürücü)
 - **LocationRecords**: araçlardan gelen konum / hız / yakıt kayıtları
 - **Alarms**: hız ihlali, düşük yakıt gibi uyarılar
+- **Geofences**: bölgeler (merkez, yarıçap, girişte/çıkışta alarm)
 - **vw_VehicleLastLocation**: her aracın son konumu (view)
 - **usp_DailyFleetReport**: günlük filo raporu (saklı yordam)

@@ -12,11 +12,14 @@ export interface Alarm {
 }
 
 // Veritabanındaki CK_Alarms_Type kuralının izin verdiği değerler
-export type AlarmType = 'SpeedLimit' | 'LowFuel' | 'Idle' | 'FuelDrain';
+export type AlarmType =
+  'SpeedLimit' | 'LowFuel' | 'Idle' | 'FuelDrain' | 'GeofenceEnter' | 'GeofenceExit';
 
 export const ALARM_TYPE_LABELS: Record<AlarmType, string> = {
   SpeedLimit: 'Hız',
   LowFuel: 'Düşük yakıt',
   Idle: 'Rölanti',
   FuelDrain: 'Yakıt kaybı',
+  GeofenceEnter: 'Bölgeye giriş',
+  GeofenceExit: 'Bölgeden çıkış',
 };

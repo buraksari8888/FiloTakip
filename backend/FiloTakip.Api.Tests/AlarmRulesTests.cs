@@ -1,3 +1,4 @@
+using FiloTakip.Api.Models;
 using FiloTakip.Api.Services;
 
 namespace FiloTakip.Api.Tests;
@@ -186,5 +187,69 @@ public class AlarmRulesTests
     {
         Assert.Equal("Uzun rölanti: motor 5 dakikadır çalışıyor, araç yerinde bekliyor",
             AlarmRules.IdleMessage(TimeSpan.FromSeconds(330)));
+    }
+
+    // ---------- Bölge (geofence) ----------
+
+    // Yarıçapı 400 m olan bir bölge. Enlemde (kuzey-güney) 0,001 derece yaklaşık 111 metre.
+    private static Geofence Zone(bool alarmOnEnter = true, bool alarmOnExit = true) => new()
+    {
+        Name = "Depo",
+        Latitude = 41.0m,
+        Longitude = 29.0m,
+        RadiusMeters = 400,
+        AlarmOnEnter = alarmOnEnter,
+        AlarmOnExit = alarmOnExit
+    };
+
+    [Fact]
+    public void DistanceMeters_OneThousandthDegreeLatitude_IsAbout111Meters()
+    {
+        Assert.Equal(111.2, GeoMath.DistanceMeters(41.0m, 29.0m, 41.001m, 29.0m), precision: 1);
+    }
+
+    [Theory]
+    [InlineData(41.0, true)]      // tam merkezde
+    [InlineData(41.0035, true)]   // ~389 m: sınırın hemen içinde
+    [InlineData(41.0037, false)]  // ~411 m: sınırın hemen dışında
+    [InlineData(41.01, false)]    // ~1,1 km
+    public void IsInsideGeofence_ComparesDistanceWithRadius(double latitude, bool expected)
+    {
+        Assert.Equal(expected, AlarmRules.IsInsideGeofence(Zone(), (decimal)latitude, 29.0m));
+    }
+
+    [Theory]
+    [InlineData(false, true, AlarmTypes.GeofenceEnter)]   // dışarıdan içeri: girdi
+    [InlineData(true, false, AlarmTypes.GeofenceExit)]    // içeriden dışarı: çıktı
+    [InlineData(true, true, null)]                        // içeride kaldı: yeni alarm yok
+    [InlineData(false, false, null)]                      // dışarıda kaldı
+    public void GeofenceAlarmType_OnlyOnBoundaryCrossing(bool wasInside, bool isInside, string? expected)
+    {
+        Assert.Equal(expected, AlarmRules.GeofenceAlarmType(Zone(), wasInside, isInside));
+    }
+
+    [Fact]
+    public void GeofenceAlarmType_ExitOnlyZone_IgnoresEntering()
+    {
+        var depot = Zone(alarmOnEnter: false, alarmOnExit: true);
+
+        Assert.Null(AlarmRules.GeofenceAlarmType(depot, wasInside: false, isInside: true));
+        Assert.Equal(AlarmTypes.GeofenceExit, AlarmRules.GeofenceAlarmType(depot, wasInside: true, isInside: false));
+    }
+
+    [Fact]
+    public void GeofenceAlarmType_EnterOnlyZone_IgnoresExiting()
+    {
+        var customer = Zone(alarmOnEnter: true, alarmOnExit: false);
+
+        Assert.Equal(AlarmTypes.GeofenceEnter, AlarmRules.GeofenceAlarmType(customer, wasInside: false, isInside: true));
+        Assert.Null(AlarmRules.GeofenceAlarmType(customer, wasInside: true, isInside: false));
+    }
+
+    [Fact]
+    public void GeofenceMessage_NamesTheZone()
+    {
+        Assert.Equal("Bölgeye girdi: Yeşilköy Depo", AlarmRules.GeofenceMessage(AlarmTypes.GeofenceEnter, "Yeşilköy Depo"));
+        Assert.Equal("Bölgeden çıktı: Yeşilköy Depo", AlarmRules.GeofenceMessage(AlarmTypes.GeofenceExit, "Yeşilköy Depo"));
     }
 }

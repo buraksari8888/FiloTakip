@@ -79,7 +79,7 @@ CREATE TABLE dbo.Alarms
     AlarmId    BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Alarms PRIMARY KEY,
     VehicleId  INT            NOT NULL CONSTRAINT FK_Alarms_Vehicles REFERENCES dbo.Vehicles (VehicleId),
     LocationId BIGINT         NULL     CONSTRAINT FK_Alarms_LocationRecords REFERENCES dbo.LocationRecords (LocationId),
-    AlarmType  VARCHAR(20)    NOT NULL CONSTRAINT CK_Alarms_Type CHECK (AlarmType IN ('SpeedLimit', 'LowFuel', 'Idle', 'FuelDrain')),
+    AlarmType  VARCHAR(20)    NOT NULL CONSTRAINT CK_Alarms_Type CHECK (AlarmType IN ('SpeedLimit', 'LowFuel', 'Idle', 'FuelDrain', 'GeofenceEnter', 'GeofenceExit')),
     Message    NVARCHAR(200)  NOT NULL,
     IsRead     BIT            NOT NULL CONSTRAINT DF_Alarms_IsRead    DEFAULT (0),
     CreatedAt  DATETIME2(0)   NOT NULL CONSTRAINT DF_Alarms_CreatedAt DEFAULT (SYSUTCDATETIME())
@@ -87,6 +87,25 @@ CREATE TABLE dbo.Alarms
 GO
 
 CREATE INDEX IX_Alarms_Vehicle_Time ON dbo.Alarms (VehicleId, CreatedAt DESC);
+GO
+
+/* ---------- Bölgeler (geofence): haritada daire şeklinde alanlar ---------- */
+-- Araç bölgenin sınırını geçince (girince ya da çıkınca) alarm üretilir. Hangisinde alarm isteneceği bölgeye göre seçilir:
+-- depodan çıkış, müşteriye varış gibi. Bölgeler bütün araçlar için geçerli.
+CREATE TABLE dbo.Geofences
+(
+    GeofenceId   INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Geofences PRIMARY KEY,
+    Name         NVARCHAR(100) NOT NULL,
+    Latitude     DECIMAL(9,6)  NOT NULL CONSTRAINT CK_Geofences_Lat CHECK (Latitude  BETWEEN -90  AND 90),
+    Longitude    DECIMAL(9,6)  NOT NULL CONSTRAINT CK_Geofences_Lng CHECK (Longitude BETWEEN -180 AND 180),
+    RadiusMeters INT           NOT NULL CONSTRAINT CK_Geofences_Radius CHECK (RadiusMeters BETWEEN 50 AND 50000),
+    AlarmOnEnter BIT           NOT NULL CONSTRAINT DF_Geofences_AlarmOnEnter DEFAULT (1),
+    AlarmOnExit  BIT           NOT NULL CONSTRAINT DF_Geofences_AlarmOnExit  DEFAULT (1),
+    IsActive     BIT           NOT NULL CONSTRAINT DF_Geofences_IsActive     DEFAULT (1),
+    CreatedAt    DATETIME2(0)  NOT NULL CONSTRAINT DF_Geofences_CreatedAt    DEFAULT (SYSUTCDATETIME()),
+    -- Hiçbir durumda alarm üretmeyen bölge anlamsız: en az biri açık olmalı
+    CONSTRAINT CK_Geofences_AlarmOn CHECK (AlarmOnEnter = 1 OR AlarmOnExit = 1)
+);
 GO
 
 /* ---------- View: her aracın son konumu ---------- */

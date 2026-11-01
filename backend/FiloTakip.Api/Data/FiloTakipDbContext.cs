@@ -11,6 +11,7 @@ public class FiloTakipDbContext(DbContextOptions<FiloTakipDbContext> options) : 
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<LocationRecord> LocationRecords => Set<LocationRecord>();
     public DbSet<Alarm> Alarms => Set<Alarm>();
+    public DbSet<Geofence> Geofences => Set<Geofence>();
     public DbSet<VehicleLastLocation> VehicleLastLocations => Set<VehicleLastLocation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
