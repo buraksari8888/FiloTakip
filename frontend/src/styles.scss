@@ -127,6 +127,19 @@ body {
   }
 }
 
+// Geçmiş rota oynatmada durak işareti: mavi kare içinde "P" (otopark tabelası gibi)
+.stop-marker {
+  border: 2px solid #fff;
+  border-radius: 4px;
+  background: var(--link);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
 // Haritadaki bölge dairesi (Leaflet'in SVG çizimi). Renk Leaflet'e değil buraya yazılı: alarm etiketiyle aynı değişken.
 path.geofence {
   stroke: var(--geofence);

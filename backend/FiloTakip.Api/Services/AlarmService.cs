@@ -177,14 +177,21 @@ public class AlarmService(
         return alarm;
     }
 
-    // En yeni alarmlar (en fazla 200)
-    public Task<List<AlarmDto>> GetAllAsync(bool unreadOnly, int take, CancellationToken cancellationToken)
+    // Süzgece uyan en yeni alarmlar (en fazla 200)
+    public Task<List<AlarmDto>> GetAllAsync(AlarmFilter filter, int take, CancellationToken cancellationToken)
     {
         take = Math.Clamp(take, 1, MaxTake);   // biri ?take=1000000 yazıp sunucuyu yormasın
 
+        // Sadece verilen süzgeçler sorguya eklenir (EF Core bunları SQL'de WHERE ... AND ... olarak birleştirir)
         var query = db.Alarms.AsQueryable();
-        if (unreadOnly)
+        if (filter.UnreadOnly)
             query = query.Where(a => !a.IsRead);
+        if (filter.VehicleId is int vehicleId)
+            query = query.Where(a => a.VehicleId == vehicleId);
+        if (filter.From is DateTime from)
+            query = query.Where(a => a.CreatedAt >= from);
+        if (filter.To is DateTime to)
+            query = query.Where(a => a.CreatedAt <= to);
 
         return query
             .OrderByDescending(a => a.CreatedAt)

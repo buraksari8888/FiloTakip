@@ -47,4 +47,32 @@ public class VehiclesController(VehicleService vehicles, LocationService locatio
 
         return recent;
     }
+
+    // Geçmiş sorgusunda izin verilen en uzun aralık. 3 saniyede bir konumla 1 gün ~29 bin kayıt (~4 MB JSON);
+    // daha uzunu hem yavaş olur hem de tarayıcıda oynatmak için gereksiz.
+    private static readonly TimeSpan MaxHistoryRange = TimeSpan.FromDays(1);
+
+    // GET /api/vehicles/5/history?from=2026-10-31T06:00:00Z&to=2026-10-31T09:00:00Z
+    // -> aracın bu aralıktaki konumları, eskiden yeniye (geçmiş rota oynatma). Aralık en fazla 1 gün.
+    // DateTimeOffset: adresteki saat dilimi ("Z" ya da "+03:00") korunur, UTC'ye doğru çevrilir.
+    [HttpGet("{id:int}/history")]
+    [ProducesResponseType<List<LocationDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<LocationDto>>> GetHistory(
+        int id, [Required] DateTimeOffset? from, [Required] DateTimeOffset? to, CancellationToken cancellationToken)
+    {
+        if (to <= from)
+            ModelState.AddModelError(nameof(to), "Bitiş zamanı başlangıçtan sonra olmalı.");
+        else if (to - from > MaxHistoryRange)
+            ModelState.AddModelError(nameof(to), "Aralık en fazla 24 saat olabilir.");
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var history = await locations.GetBetweenAsync(id, from!.Value.UtcDateTime, to!.Value.UtcDateTime, cancellationToken);
+        if (history is null)
+            return NotFound();
+
+        return history;
+    }
 }

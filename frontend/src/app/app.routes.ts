@@ -10,6 +10,12 @@ export const routes: Routes = [
     loadComponent: () => import('./map/vehicle-map/vehicle-map').then((m) => m.VehicleMap),
     title: 'Harita · FiloTakip',
   },
+  {
+    path: 'gecmis',
+    // Harita sayfası gibi Leaflet kullanır, o yüzden o da ayrı dosyada
+    loadComponent: () => import('./map/route-playback/route-playback').then((m) => m.RoutePlayback),
+    title: 'Geçmiş rota · FiloTakip',
+  },
   { path: 'araclar', component: VehicleList, title: 'Araçlar · FiloTakip' },
   { path: 'alarmlar', component: AlarmList, title: 'Alarmlar · FiloTakip' },
   { path: '', redirectTo: 'harita', pathMatch: 'full' },

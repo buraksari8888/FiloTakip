@@ -20,4 +20,11 @@ export class VehicleApi {
       params: { minutes },
     });
   }
+
+  // Aracın iki an arasındaki konumları, eskiden yeniye (geçmiş rota oynatma). Aralık en fazla 24 saat.
+  getHistory(vehicleId: number, from: Date, to: Date): Observable<LocationUpdate[]> {
+    return this.http.get<LocationUpdate[]>(`${environment.apiUrl}/vehicles/${vehicleId}/history`, {
+      params: { from: from.toISOString(), to: to.toISOString() },
+    });
+  }
 }

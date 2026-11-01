@@ -30,17 +30,11 @@ import {
   speedLimitSource,
   VehicleLastLocation,
 } from '../../vehicles/vehicle-last-location';
+import { createMap, escapeHtml, markerIcon, toId } from '../map-helpers';
 import { recentTrail, TRAIL_MINUTES, trailSegments } from './trail';
 
-const ISTANBUL: L.LatLngTuple = [41.03, 28.98];
 const FOCUS_ZOOM = 16; // tek bir araca ya da alarma yakınlaşırken (sokak düzeyi)
 const GEOFENCE_PANE = 'geofences';
-
-// Adresteki ?arac=3 / ?alarm=46 değerini sayıya çevirir; yoksa ya da geçersizse (ör. ?arac=abc) yok sayar
-function toId(value: string | undefined): number | undefined {
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
-}
 
 @Component({
   imports: [ApiErrorAlert],
@@ -145,11 +139,7 @@ export class VehicleMap {
   constructor() {
     // Leaflet gerçek bir HTML elemanına ihtiyaç duyar, bu yüzden haritayı sayfa çizildikten sonra oluşturuyoruz
     afterNextRender(() => {
-      const map = L.map(this.mapElement().nativeElement).setView(ISTANBUL, 11);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> katkıcıları',
-      }).addTo(map);
+      const map = createMap(this.mapElement().nativeElement);
       // Bölgeler için ayrı katman: çizgilerin (iz, 400) ve araç işaretlerinin (600) altında kalsın, onları örtmesin
       map.createPane(GEOFENCE_PANE).style.zIndex = '350';
       this.map.set(map);
@@ -336,21 +326,4 @@ function trailColor(fade: number): string {
   const light = [180, 203, 238];
   const [r, g, b] = dark.map((d, i) => Math.round(d + (light[i] - d) * fade));
   return `rgb(${r}, ${g}, ${b})`;
-}
-
-// Haritadaki işaret: renkli nokta + yanında plaka
-function markerIcon(plate: string): L.DivIcon {
-  return L.divIcon({
-    className: 'vehicle-marker',
-    html: `<span class="label">${escapeHtml(plate)}</span>`,
-    iconSize: [14, 14],
-    popupAnchor: [0, -8],
-  });
-}
-
-// Veritabanından gelen metni HTML'e koymadan önce zararsız hale getir
-// (ör. sürücü adına "<script>" yazılmışsa çalışmasın, düz yazı olarak görünsün)
-function escapeHtml(text: string): string {
-  const replacements: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-  return text.replace(/[&<>"']/g, (ch) => replacements[ch]);
 }

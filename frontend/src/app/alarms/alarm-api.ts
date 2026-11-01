@@ -14,6 +14,13 @@ export class AlarmApi {
     return this.http.get<Alarm[]>(this.baseUrl, { params: { unreadOnly } });
   }
 
+  // Bir aracın iki an arasında oluşan alarmları (geçmiş rota oynatma; en fazla 200, en yenisi önce)
+  getVehicleAlarms(vehicleId: number, from: Date, to: Date): Observable<Alarm[]> {
+    return this.http.get<Alarm[]>(this.baseUrl, {
+      params: { vehicleId, from: from.toISOString(), to: to.toISOString(), take: 200 },
+    });
+  }
+
   getAlarm(alarmId: number): Observable<Alarm> {
     return this.http.get<Alarm>(`${this.baseUrl}/${alarmId}`);
   }
