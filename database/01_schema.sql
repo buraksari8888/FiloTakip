@@ -116,6 +116,10 @@ CREATE TABLE dbo.Geofences
 );
 GO
 
+-- Alarm mesajında bölgenin adı geçiyor: iki aktif bölgenin adı aynı olamaz (silinmiş bölgeler hariç)
+CREATE UNIQUE INDEX UX_Geofences_Name ON dbo.Geofences (Name) WHERE IsActive = 1;
+GO
+
 /* ---------- Yol parçaları (hız sınırı için) ---------- */
 -- Yolun iki noktası arasındaki düz parça ve o yolun hız sınırı (OpenStreetMap'ten).
 -- Veriyi 07_road_segments.sql ekler (simulator/build_routes.py oluşturur).

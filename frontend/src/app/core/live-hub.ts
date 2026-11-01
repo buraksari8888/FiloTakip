@@ -29,6 +29,7 @@ export class LiveHub {
   private readonly locationAdded = new Subject<LocationUpdate>();
   private readonly alarmsChanged = new Subject<void>();
   private readonly vehiclesChanged = new Subject<void>();
+  private readonly geofencesChanged = new Subject<void>();
   private readonly reconnected = new Subject<void>();
   private hadProblem = false; // bağlantı koptu mu ya da hiç kurulamadı mı?
 
@@ -37,6 +38,8 @@ export class LiveHub {
   readonly alarmsChanged$ = this.alarmsChanged.asObservable();
   // Araç eklendi, pasife alındı ya da sürücüsü değişti (başka bir sekmede de olabilir)
   readonly vehiclesChanged$ = this.vehiclesChanged.asObservable();
+  // Bölge eklendi, düzenlendi ya da silindi
+  readonly geofencesChanged$ = this.geofencesChanged.asObservable();
   // Bağlantı koptuktan (ya da ilk denemede kurulamadıktan) sonra kurulunca. Aradaki mesajlar kaçmış olabilir,
   // bu yüzden veriyi gösteren servisler bunu duyunca listelerini baştan çeker.
   readonly reconnected$ = this.reconnected.asObservable();
@@ -54,6 +57,7 @@ export class LiveHub {
     this.connection.on('LocationAdded', (location: LocationUpdate) => this.locationAdded.next(location));
     this.connection.on('AlarmsChanged', () => this.alarmsChanged.next());
     this.connection.on('VehiclesChanged', () => this.vehiclesChanged.next());
+    this.connection.on('GeofencesChanged', () => this.geofencesChanged.next());
     this.connection.onreconnecting(() => this.lost());
     this.connection.onreconnected(() => this.connected());
     void this.start();

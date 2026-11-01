@@ -22,4 +22,7 @@ public interface ILiveClient
 
     // Araçlar değişti (araç eklendi, pasife alındı, sürücüsü ya da sürücünün adı değişti): araç listesi yeniden çekilir
     Task VehiclesChanged();
+
+    // Bölgeler değişti (eklendi, düzenlendi ya da silindi): haritalar bölgeleri yeniden çeker
+    Task GeofencesChanged();
 }

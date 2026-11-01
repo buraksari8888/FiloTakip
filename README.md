@@ -18,7 +18,7 @@ ve listede gösterir; bir aracın geçmişteki yolunu da haritada baştan oynata
 | --- | --- | --- |
 | `database/` | MSSQL | Tablolar, view, örnek veriler |
 | `backend/` | .NET 10 Web API, EF Core, xUnit | REST API ve birim testleri |
-| `frontend/` | Angular 22, Leaflet | Harita, geçmiş rota oynatma, araç listesi, alarmlar |
+| `frontend/` | Angular 22, Leaflet | Harita, geçmiş rota oynatma, araç listesi, bölgeler, alarmlar |
 | `simulator/` | Python | Araçlardan konum gönderen simülatör |
 | `reports/` | Python, pandas, openpyxl | Günlük filo raporu (ekrana ve Excel'e) |
 
@@ -57,6 +57,7 @@ sqlcmd -S localhost -E -C -i 07_road_segments.sql
 > sqlcmd -S localhost -E -C -i 07_road_segments.sql       # yol parçaları ve sınırları
 > sqlcmd -S localhost -E -C -i 08_vehicle_management.sql  # araç türü
 > sqlcmd -S localhost -E -C -i 09_driver_one_vehicle.sql   # bir sürücü aynı anda tek araçta
+> sqlcmd -S localhost -E -C -i 10_geofence_names.sql       # aktif bölgelerin adı tekrar edemez
 > ```
 
 ### 2. API
@@ -87,10 +88,11 @@ Arayüz: <http://localhost:4200>
 | Geçmiş rota | `/gecmis` | Seçilen aracın seçilen gün ve saat aralığındaki (en fazla 24 saat) yolu haritada baştan oynatılır: oynat/duraklat, hız (1x / 4x / 16x; 1x = 1 dakikalık yol 1 saniyede), sürüklenebilir ilerleme çubuğu. Güzergâhın tamamı gri, gidilmiş kısmı mavi çizilir; o anki hız, yakıt ve kontak yazar. 2 dakikadan uzun veri boşlukları ve 2 km'den büyük konum sıçramaları (cihaz kapalıydı, simülatör durdurulup yeniden başlatıldı) atlanır; atlanınca ekranda birkaç saniye hangi aralığın atlandığı ve aracın kaç km ötede devam ettiği yazar. İlerleme çubuğunun altındaki ince şerit verinin olduğu aralıkları mavi gösterir. Sekme arka plandayken oynatma bekler, dönünce kaldığı yerden devam eder. En az 1 dakika durduğu yerler mavi "P", o aralıktaki alarmlar kırmızı halka; tıklanınca bilgisi açılır ve oynatma o ana gider |
 | | `/gecmis?arac=3` | O araç seçili açılır |
 | Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster", "Geçmiş", "Sürücü" ve "Sil". Arama kutusu plaka, marka, model, tür ve sürücü adında arar: büyük/küçük harf, Türkçe harfler ve boşluklar önemsiz ("yilmaz" "Yılmaz"ı, "34abc" "34 ABC 123"ü bulur), her kelime bir alanda geçmeli ("ford ahmet"). Ayrıntılar aşağıda (Araç yönetimi) |
+| Bölgeler | `/bolgeler` | Solda bölge listesi, sağda harita. **+ Yeni bölge** haritanın ortasında bir daire açar: haritaya tıklanan ya da ortadaki nokta sürüklenen yer bölgenin merkezi olur, kenardaki beyaz nokta sürüklenerek (ya da kaydırma çubuğu / kutuyla) yarıçap değişir (50 m – 50 km). Ad ve alarm seçimi (girişte, çıkışta ya da ikisinde; en az biri) formdan girilir. **Düzenle** aynı formu açar, **Sil** onay sorar. Listede bir bölgeye tıklanınca harita oraya gider; haritada bir bölgeye tıklanınca listede işaretlenir. Değişiklik canlı haritada sayfa yenilenmeden görünür |
 | Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme, silme; her satırda "Haritada göster" |
 | | başka her adres | Haritaya yönlendirilir (yanlış yazılmış bağlantı boş sayfa açmasın) |
 
-Arayüz varsayılan olarak koyu temada açılır; üst menünün sağındaki ☀ / ☾ düğmesi açık temaya geçirir (seçim tarayıcıda hatırlanır). Koyu temada harita altlığının renkleri ters çevrilip kısılır, araçlar ve izler kendi renklerinde kalır. Canlı haritada araçlar yeni konumlarına ışınlanmak yerine 1 saniyede kayar; hız sınırını aşan aracın işareti kırmızı ve nabız gibi atar. Araçlar sayfasının üstündeki kartlar filonun anlık durumunu gösterir (araç sayısı, hareket halinde, hız ihlali, düşük yakıt).
+Arayüz varsayılan olarak koyu temada açılır; üst menünün sağındaki ☀ / ☾ düğmesi açık temaya geçirir (seçim tarayıcıda hatırlanır). Koyu temada harita altlığının renkleri ters çevrilip kısılır, araçlar ve izler kendi renklerinde kalır. Canlı haritada araçlar yeni konumlarına ışınlanmak yerine 1 saniyede kayar; hız sınırını aşan aracın işareti kırmızı ve nabız gibi atar. Araçlar sayfasının üstündeki kartlar filonun anlık durumunu gösterir (araç sayısı, hareket halinde, hız ihlali, düşük yakıt). Dar ekranda (telefon) üst menü sığmadığı için yana kaydırılır.
 
 #### Araç yönetimi
 
@@ -298,6 +300,10 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `POST /api/alarms/read-all` | Bütün alarmları okundu işaretler |
 | `DELETE /api/alarms/{id}` | Alarmı kalıcı olarak siler |
 | `GET /api/geofences` | Aktif bölgeler (merkez, yarıçap, girişte/çıkışta alarm) |
+| `GET /api/geofences/{id}` | Tek bölge |
+| `POST /api/geofences` | Yeni bölge (`name`, `latitude`, `longitude`, `radiusMeters` 50–50000, `alarmOnEnter`, `alarmOnExit`; en az biri `true`). Aynı adda aktif bölge varsa 409 (büyük/küçük harf fark etmez) |
+| `PUT /api/geofences/{id}` | Bölgeyi değiştirir (aynı alanlar) |
+| `DELETE /api/geofences/{id}` | Bölgeyi pasife alır: alarm üretmez, haritadan kalkar; eski alarmları silinmez |
 | `/hubs/live` | Canlı bildirim kanalı (SignalR, WebSocket), bkz. [Canlı güncelleme](#canlı-güncelleme-signalr) |
 
 ## Canlı güncelleme (SignalR)
@@ -309,6 +315,8 @@ kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi
 | --- | --- | --- |
 | `LocationAdded` | Yeni konum kaydedildi | Liste ve haritada sadece o aracı günceller |
 | `AlarmsChanged` | Alarm üretildi ya da okundu işaretlendi | Rozeti ve alarm listesini yeniden çeker |
+| `VehiclesChanged` | Araç eklendi, pasife alındı, sürücüsü ya da sürücünün adı değişti | Araç listesini yeniden çeker |
+| `GeofencesChanged` | Bölge eklendi, düzenlendi ya da silindi | Canlı harita ve Bölgeler sayfası bölgeleri yeniden çeker |
 
 - Üst menünün sağındaki nokta bağlantıyı gösterir: yeşil **Canlı**, sarı **Bağlanıyor…**, kırmızı **Bağlantı yok**.
 - Bağlantı koparsa arayüz 5 saniyede bir yeniden dener. Bağlantı geri gelince kopukken kaçan değişiklikler için
@@ -346,7 +354,9 @@ kanalına bağlanır; API yeni bir şey olunca bağlı bütün ekranlara kendisi
   geçişte alarm istendiği ayrı seçilir (ör. depo için sadece çıkış, müşteri için sadece varış). Aracın ilk
   konumu bölgenin içindeyse alarm yoktur (karşılaştıracak önceki konum yok). Konumlar arasında araç
   bölgenin içinden geçip çıkmışsa (iki konum da dışarıda) bu fark edilmez; bölge yarıçapı, cihazın iki konum
-  arasında gittiği yoldan büyük seçilmelidir.
+  arasında gittiği yoldan büyük seçilmelidir. Bölgeler sayfasında yapılan değişiklik bir sonraki konumdan
+  itibaren geçerlidir. Önceki ve yeni konum bölgenin yeni haliyle karşılaştırıldığı için bölgeyi taşımak tek
+  başına alarm üretmez. Silinen bölge alarm üretmez, eski alarmları silinmez.
 - **Liste ve harita:** Hız geçerli sınırın üstündeyse araç toleranssız olarak kırmızı, yakıt %15'in altındaysa turuncu gösterilir.
 
 ## Proje yapısı
@@ -371,7 +381,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | --- | --- |
 | `vehicles/` | Araç modeli, API servisi, canlı veri, araç listesi sayfası |
 | `alarms/` | Alarm modeli, API servisi, okunmamış sayısı, alarm listesi sayfası |
-| `geofences/` | Bölge modeli ve API servisi (bölgeler haritada çizilir) |
+| `geofences/` | Bölge modeli, API servisi, Bölgeler sayfası (`geofence-manager/`, Leaflet kullandığı için ayrı dosyada) |
 | `drivers/` | Sürücü modeli ve API servisi (sürücü penceresi `vehicles/driver-dialog/` içinde) |
 | `map/` | Leaflet kullanan sayfalar (ayrı dosyalarda, sadece açılınca yüklenir): canlı harita (`vehicle-map/`), geçmiş rota oynatma (`route-playback/`); ortak harita parçaları `map-helpers.ts` |
 | `core/` | Bütün uygulamanın paylaştığı tekil servisler (API'ye canlı bağlantı: `LiveHub`, koyu/açık tema: `ThemeService`) |
@@ -404,8 +414,9 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `05_geofences.sql` | Var olan veritabanına bölgeler tablosunu, örnek bölgeleri ve bölge alarm türlerini ekler (veriyi silmeden) |
 | `06_road_speed_limits.sql` | Var olan veritabanına yol parçaları tablosunu ve konumlara yol sınırı sütununu ekler (veriyi silmeden) |
 | `07_road_segments.sql` | Yol parçaları ve hız sınırları (`build_routes.py` oluşturur, elle değiştirilmez) |
-| `09_driver_one_vehicle.sql` | Var olan veritabanına "bir sürücü aynı anda tek araçta" kuralını (UNIQUE index) ekler, varsa çakışmaları temizler |
 | `08_vehicle_management.sql` | Var olan veritabanına araç türü sütununu ekler, örnek araçların türünü doldurur (veriyi silmeden) |
+| `09_driver_one_vehicle.sql` | Var olan veritabanına "bir sürücü aynı anda tek araçta" kuralını (UNIQUE index) ekler, varsa çakışmaları temizler |
+| `10_geofence_names.sql` | Var olan veritabanına "aktif bölgelerin adı tekrar edemez" kuralını (UNIQUE index) ekler, varsa aynı adlara (2), (3) ekler |
 
 ## Tablolar
 
