@@ -417,3 +417,11 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 - **RoadSegments**: yol parçaları (iki nokta arası) ve hız sınırları
 - **vw_VehicleLastLocation**: her aracın son konumu (view)
 - **usp_DailyFleetReport**: günlük filo raporu (saklı yordam)
+
+## Lisans ve veri kaynakları
+
+- Kod [MIT lisansı](LICENSE) ile paylaşılıyor.
+- Harita, simülatör rotaları (`simulator/routes.json`) ve yol hız sınırları (`database/07_road_segments.sql`)
+  OpenStreetMap verisinden gelir: © [OpenStreetMap katkıcıları](https://www.openstreetmap.org/copyright),
+  [ODbL](https://opendatacommons.org/licenses/odbl/) lisansı. Rotalar [OSRM](https://project-osrm.org/) ile hesaplandı.
+- Örnek verilerdeki kişiler, telefonlar ve plakalar uydurmadır.
