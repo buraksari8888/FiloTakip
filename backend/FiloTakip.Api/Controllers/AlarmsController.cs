@@ -9,9 +9,17 @@ namespace FiloTakip.Api.Controllers;
 public class AlarmsController(AlarmService alarms) : ControllerBase
 {
     // GET /api/alarms?unreadOnly=true&take=50 -> en yeni alarmlar
+    // İsteğe bağlı süzgeçler: vehicleId (tek araç), from / to (bu aralıkta oluşanlar; geçmiş rota oynatma için)
     [HttpGet]
-    public Task<List<AlarmDto>> GetAll(bool unreadOnly = false, int take = 50, CancellationToken cancellationToken = default) =>
-        alarms.GetAllAsync(unreadOnly, take, cancellationToken);
+    public Task<List<AlarmDto>> GetAll(
+        bool unreadOnly = false,
+        int take = 50,
+        int? vehicleId = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        CancellationToken cancellationToken = default) =>
+        alarms.GetAllAsync(
+            new AlarmFilter(unreadOnly, vehicleId, from?.UtcDateTime, to?.UtcDateTime), take, cancellationToken);
 
     // GET /api/alarms/5 -> tek alarm, yoksa 404 (haritada "alarmın olduğu yer" için)
     [HttpGet("{id:long}")]

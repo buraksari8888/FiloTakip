@@ -11,3 +11,6 @@ public record AlarmDto(
     DateTime CreatedAt,
     decimal? Latitude,
     decimal? Longitude);
+
+// Alarm listesi süzgeci. Boş (null) alanlar süzmez. From/To: alarmın oluştuğu an (UTC) bu aralıkta olsun.
+public record AlarmFilter(bool UnreadOnly, int? VehicleId = null, DateTime? From = null, DateTime? To = null);

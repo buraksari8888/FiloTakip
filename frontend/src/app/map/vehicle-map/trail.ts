@@ -61,7 +61,8 @@ export function recentTrail(points: LocationUpdate[], minutes: number): Location
   return points.filter((p) => Date.parse(p.recordedAt) >= since);
 }
 
-function isBreak(a: LocationUpdate, b: LocationUpdate): boolean {
+// İki ardışık konum arasında çizgi kopmalı mı? (geçmiş rota oynatma da boşlukları bununla bulur)
+export function isBreak(a: LocationUpdate, b: LocationUpdate): boolean {
   const gapSeconds = (Date.parse(b.recordedAt) - Date.parse(a.recordedAt)) / 1000;
   return gapSeconds > MAX_GAP_SECONDS || distanceKm(a, b) > MAX_JUMP_KM;
 }

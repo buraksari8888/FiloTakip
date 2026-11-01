@@ -4,7 +4,7 @@ Araç filosu takip sistemi. Staj öncesi pratik projesi.
 
 Araçlardaki GPS cihazlarını taklit eden bir simülatör, konumları API'ye gönderir. API konumları
 veritabanına kaydeder, aracın bulunduğu yolun ya da aracın kendi hız sınırı aşılınca, yakıt azalınca, araç uzun süre rölantide kalınca ya da bir bölgeye girip çıkınca alarm üretir. Web arayüzü araçları canlı olarak haritada
-ve listede gösterir.
+ve listede gösterir; bir aracın geçmişteki yolunu da haritada baştan oynatabilir.
 
 ```text
  Simülatör (Python)  ──── POST konum ────▶  API (.NET)  ◀──▶  SQL Server
@@ -18,7 +18,7 @@ ve listede gösterir.
 | --- | --- | --- |
 | `database/` | MSSQL | Tablolar, view, örnek veriler |
 | `backend/` | .NET 10 Web API, EF Core, xUnit | REST API ve birim testleri |
-| `frontend/` | Angular 22, Leaflet | Harita, araç listesi, alarmlar |
+| `frontend/` | Angular 22, Leaflet | Harita, geçmiş rota oynatma, araç listesi, alarmlar |
 | `simulator/` | Python | Araçlardan konum gönderen simülatör |
 | `reports/` | Python, pandas, openpyxl | Günlük filo raporu (ekrana ve Excel'e) |
 
@@ -82,7 +82,9 @@ Arayüz: <http://localhost:4200>
 | Harita | `/harita` | Bütün araçlar canlı olarak haritada. Bir araca tıklanınca son 30 dakikada geçtiği yol mavi çizgiyle gösterilir: iz yeni konum geldikçe uzar, eski kısmı soluk çizilir, 2 dakikadan uzun boşluk ya da 2 km'den büyük sıçramada kopar. Bölgeler kesik çizgili lacivert daire olarak çizilir; ortasında adı ve hangi geçişte alarm verdiği yazar |
 | | `/harita?arac=3` | O araca yakınlaşır, bilgi balonunu ve izini açar |
 | | `/harita?alarm=46` | Alarmın olduğu yeri kırmızı halkayla gösterir (aracın şu anki yeri değil) |
-| Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster" |
+| Geçmiş rota | `/gecmis` | Seçilen aracın seçilen gün ve saat aralığındaki (en fazla 24 saat) yolu haritada baştan oynatılır: oynat/duraklat, hız (1x / 4x / 16x; 1x = 1 dakikalık yol 1 saniyede), sürüklenebilir ilerleme çubuğu. Güzergâhın tamamı gri, gidilmiş kısmı mavi çizilir; o anki hız, yakıt ve kontak yazar. 2 dakikadan uzun veri boşlukları (cihaz kapalı) atlanır. En az 1 dakika durduğu yerler mavi "P", o aralıktaki alarmlar kırmızı halka; tıklanınca bilgisi açılır ve oynatma o ana gider |
+| | `/gecmis?arac=3` | O araç seçili açılır |
+| Araçlar | `/araclar` | Araçların son durumu; her satırda "Haritada göster" ve "Geçmiş" |
 | Alarmlar | `/alarmlar` | Alarmlar, okundu işaretleme; her satırda "Haritada göster" |
 
 ### 4. Simülatör
@@ -254,9 +256,10 @@ aynı numarayı yazar. Bu numara API'nin logunda aratılırsa hatanın tamamı (
 | `GET /api/vehicles/{id}` | Tek araç |
 | `GET /api/vehicles/last-locations` | Her aracın son konumu (harita ve liste bunu kullanır) |
 | `GET /api/vehicles/{id}/locations?minutes=30` | Aracın son X dakikadaki konumları, eskiden yeniye (haritadaki iz; `minutes` 1–1440) |
+| `GET /api/vehicles/{id}/history?from=...&to=...` | Aracın iki an arasındaki konumları, eskiden yeniye (geçmiş rota oynatma). `from` ve `to` saat dilimli yazılır (ör. `2026-10-31T06:00:00Z`); ikisi de zorunlu, aralık en fazla 24 saat, yoksa 400 |
 | `POST /api/locations` | Yeni konum kaydı (simülatör bunu kullanır), gerekirse alarm üretir |
 | `GET /api/locations/{id}` | Tek konum kaydı |
-| `GET /api/alarms?unreadOnly=true&take=50` | En yeni alarmlar |
+| `GET /api/alarms?unreadOnly=true&take=50` | En yeni alarmlar (en fazla 200). İsteğe bağlı süzgeçler: `vehicleId`, `from`, `to` (alarmın oluştuğu an) |
 | `GET /api/alarms/{id}` | Tek alarm (konumuyla birlikte) |
 | `GET /api/alarms/unread-count` | Okunmamış alarm sayısı |
 | `POST /api/alarms/{id}/read` | Alarmı okundu işaretler |
@@ -336,7 +339,7 @@ Birim testleri `backend/FiloTakip.Api.Tests` içinde.
 | `vehicles/` | Araç modeli, API servisi, canlı veri, araç listesi sayfası |
 | `alarms/` | Alarm modeli, API servisi, okunmamış sayısı, alarm listesi sayfası |
 | `geofences/` | Bölge modeli ve API servisi (bölgeler haritada çizilir) |
-| `map/` | Leaflet haritası sayfası (ayrı dosyada, sadece bu sayfa açılınca yüklenir) |
+| `map/` | Leaflet kullanan sayfalar (ayrı dosyalarda, sadece açılınca yüklenir): canlı harita (`vehicle-map/`), geçmiş rota oynatma (`route-playback/`); ortak harita parçaları `map-helpers.ts` |
 | `core/` | Bütün uygulamanın paylaştığı tekil servisler (API'ye canlı bağlantı: `LiveHub`) |
 | `shared/` | Birden fazla sayfanın kullandığı parçalar (hataya göre mesaj gösteren API hata kutusu) |
 

@@ -1,0 +1,132 @@
+// Harita sayfası gibi: üst menünün altındaki bütün yükseklik, harita kalan alanı doldursun
+:host {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 56px - 48px); // ekran - üst menü - main'in üst/alt boşluğu
+  min-height: 500px;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 22px;
+}
+
+.query {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  select,
+  input {
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+}
+
+.form-error {
+  margin: 0 0 12px;
+  color: var(--danger);
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  .play {
+    min-width: 110px;
+  }
+
+  .progress {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .clock {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+}
+
+// Hız seçimi: yan yana bitişik üç düğme, seçili olan koyu
+.speeds {
+  display: flex;
+
+  button {
+    padding: 5px 10px;
+    border: 1px solid var(--topbar);
+    background: var(--surface);
+    color: var(--topbar);
+    font: inherit;
+    cursor: pointer;
+
+    &:first-child {
+      border-radius: 6px 0 0 6px;
+    }
+
+    &:last-child {
+      border-radius: 0 6px 6px 0;
+    }
+
+    & + button {
+      border-left: none;
+    }
+
+    &.active {
+      background: var(--topbar);
+      color: #fff;
+    }
+  }
+}
+
+.status {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.map {
+  flex: 1;
+  min-height: 300px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  :host {
+    height: auto; // dar ekranda form ve oynatıcı alt alta: sayfa kaysın, harita sabit yükseklikte olsun
+  }
+
+  .player {
+    flex-wrap: wrap;
+
+    .progress {
+      flex-basis: 100%;
+      order: 1;
+    }
+  }
+
+  .map {
+    flex: none;
+    height: 60dvh;
+  }
+}
