@@ -51,6 +51,7 @@ public class VehicleService(FiloTakipDbContext db)
                 v.SpeedKmh,
                 v.FuelPercent,
                 v.IgnitionOn,
-                v.RecordedAt))
+                v.RecordedAt,
+                v.RoadSpeedLimitKmh))
             .ToListAsync(cancellationToken);
 }

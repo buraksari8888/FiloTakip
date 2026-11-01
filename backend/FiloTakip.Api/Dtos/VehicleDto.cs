@@ -26,4 +26,5 @@ public record VehicleLastLocationDto(
     decimal? SpeedKmh,
     decimal? FuelPercent,
     bool? IgnitionOn,
-    DateTime? RecordedAt);
+    DateTime? RecordedAt,
+    short? RoadSpeedLimitKmh);   // son konumdaki yolun sınırı; geçerli sınır bununla SpeedLimitKmh'den küçük olanı

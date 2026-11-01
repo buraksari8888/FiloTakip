@@ -18,5 +18,28 @@ public static class GeoMath
         return 2 * EarthRadiusMeters * Math.Asin(Math.Sqrt(a));
     }
 
+    // Bir enlem derecesi kaç metre (boylam derecesi ise kutuplara doğru kısalır: bunun cos(enlem) katı)
+    private const double MetersPerDegree = EarthRadiusMeters * Math.PI / 180;
+
+    // Noktanın, iki nokta arasındaki düz parçaya en kısa uzaklığı, metre.
+    // Birkaç yüz metrelik mesafelerde Dünya'yı düz kabul etmek yeterli: derece farkları metreye çevrilip
+    // düzlemde (x: doğu, y: kuzey) hesaplanır. Nokta orijinde, parçanın uçları ona göre A ve B.
+    public static double DistanceToSegmentMeters(
+        decimal latitude, decimal longitude,
+        decimal startLatitude, decimal startLongitude, decimal endLatitude, decimal endLongitude)
+    {
+        var metersPerDegreeLon = MetersPerDegree * Math.Cos(ToRadians(latitude));
+        var ax = (double)(startLongitude - longitude) * metersPerDegreeLon;
+        var ay = (double)(startLatitude - latitude) * MetersPerDegree;
+        var dx = (double)(endLongitude - startLongitude) * metersPerDegreeLon;   // A'dan B'ye
+        var dy = (double)(endLatitude - startLatitude) * MetersPerDegree;
+
+        // Parçanın noktaya en yakın yeri A + t * (B - A); t = 0 A'nın, t = 1 B'nin kendisi.
+        // Dik izdüşüm parçanın dışına düşüyorsa en yakın yer o taraftaki uçtur.
+        var lengthSquared = dx * dx + dy * dy;
+        var t = lengthSquared == 0 ? 0 : Math.Clamp(-(ax * dx + ay * dy) / lengthSquared, 0, 1);
+        return Math.Sqrt(Math.Pow(ax + t * dx, 2) + Math.Pow(ay + t * dy, 2));
+    }
+
     private static double ToRadians(decimal degrees) => (double)degrees * Math.PI / 180;
 }

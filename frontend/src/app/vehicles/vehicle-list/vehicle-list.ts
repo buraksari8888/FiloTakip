@@ -3,7 +3,7 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../live-vehicles';
-import { isLowFuel, isSpeeding } from '../vehicle-last-location';
+import { isLowFuel, isSpeeding, speedLimit, speedLimitSource } from '../vehicle-last-location';
 
 @Component({
   imports: [ApiErrorAlert, DatePipe, DecimalPipe, RouterLink],
@@ -21,5 +21,7 @@ export class VehicleList {
   protected readonly lowFuelCount = computed(() => (this.vehicles() ?? []).filter(isLowFuel).length);
 
   protected readonly isSpeeding = isSpeeding;
+  protected readonly speedLimit = speedLimit;
+  protected readonly speedLimitSource = speedLimitSource;
   protected readonly isLowFuel = isLowFuel;
 }

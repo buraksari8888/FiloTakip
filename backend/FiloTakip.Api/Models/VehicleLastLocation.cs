@@ -27,4 +27,5 @@ public class VehicleLastLocation
 
     public bool? IgnitionOn { get; set; }
     public DateTime? RecordedAt { get; set; }
+    public short? RoadSpeedLimitKmh { get; set; }
 }

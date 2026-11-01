@@ -63,7 +63,10 @@ CREATE TABLE dbo.LocationRecords
     SpeedKmh    DECIMAL(5,1)  NOT NULL CONSTRAINT CK_LocationRecords_Speed CHECK (SpeedKmh >= 0),
     FuelPercent DECIMAL(5,2)  NULL     CONSTRAINT CK_LocationRecords_Fuel  CHECK (FuelPercent BETWEEN 0 AND 100),
     IgnitionOn  BIT           NOT NULL,
-    RecordedAt  DATETIME2(0)  NOT NULL   -- cihazın veriyi ürettiği an (UTC)
+    RecordedAt  DATETIME2(0)  NOT NULL,  -- cihazın veriyi ürettiği an (UTC)
+    -- Aracın o an bulunduğu yolun hız sınırı. Cihaz göndermez, API RoadSegments'ten bulup yazar;
+    -- bilinen bir yolda değilse NULL (o zaman aracın kendi sınırı geçerli).
+    RoadSpeedLimitKmh SMALLINT NULL
 );
 GO
 
@@ -108,6 +111,22 @@ CREATE TABLE dbo.Geofences
 );
 GO
 
+/* ---------- Yol parçaları (hız sınırı için) ---------- */
+-- Yolun iki noktası arasındaki düz parça ve o yolun hız sınırı (OpenStreetMap'ten).
+-- Veriyi 07_road_segments.sql ekler (simulator/build_routes.py oluşturur).
+CREATE TABLE dbo.RoadSegments
+(
+    RoadSegmentId  INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_RoadSegments PRIMARY KEY,
+    RoadName       NVARCHAR(200) NULL,       -- OSM'de adı olmayan yollar da var
+    HighwayType    VARCHAR(30)   NOT NULL,   -- OSM yol türü: trunk, primary, residential...
+    SpeedLimitKmh  SMALLINT      NOT NULL CONSTRAINT CK_RoadSegments_Limit CHECK (SpeedLimitKmh BETWEEN 10 AND 150),
+    StartLatitude  DECIMAL(9,6)  NOT NULL,
+    StartLongitude DECIMAL(9,6)  NOT NULL,
+    EndLatitude    DECIMAL(9,6)  NOT NULL,
+    EndLongitude   DECIMAL(9,6)  NOT NULL
+);
+GO
+
 /* ---------- View: her aracın son konumu ---------- */
 CREATE VIEW dbo.vw_VehicleLastLocation
 AS
@@ -123,12 +142,13 @@ SELECT
     l.SpeedKmh,
     l.FuelPercent,
     l.IgnitionOn,
-    l.RecordedAt
+    l.RecordedAt,
+    l.RoadSpeedLimitKmh
 FROM dbo.Vehicles v
 LEFT JOIN dbo.Drivers d ON d.DriverId = v.DriverId
 OUTER APPLY
 (
-    SELECT TOP (1) lr.Latitude, lr.Longitude, lr.SpeedKmh, lr.FuelPercent, lr.IgnitionOn, lr.RecordedAt
+    SELECT TOP (1) lr.Latitude, lr.Longitude, lr.SpeedKmh, lr.FuelPercent, lr.IgnitionOn, lr.RecordedAt, lr.RoadSpeedLimitKmh
     FROM dbo.LocationRecords lr
     WHERE lr.VehicleId = v.VehicleId
     ORDER BY lr.RecordedAt DESC

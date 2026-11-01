@@ -35,7 +35,7 @@
             @if (v.recordedAt) {
               <td class="num" [class.danger]="isSpeeding(v)">
                 {{ v.speedKmh | number: '1.0-1' }} km/s
-                <small>/ {{ v.speedLimitKmh }}</small>
+                <small [title]="speedLimitSource(v) + ' sınırı'">/ {{ speedLimit(v) }}</small>
               </td>
               <td class="num" [class.warning]="isLowFuel(v)">%{{ v.fuelPercent | number: '1.0-1' }}</td>
               <td>{{ v.ignitionOn ? 'Açık' : 'Kapalı' }}</td>

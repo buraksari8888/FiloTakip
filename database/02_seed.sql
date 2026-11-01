@@ -38,7 +38,7 @@ GO
 
 -- 1 numaralı aracın son kaydı hız sınırını (90) aştığı için örnek alarm
 INSERT INTO dbo.Alarms (VehicleId, LocationId, AlarmType, Message)
-SELECT TOP (1) VehicleId, LocationId, 'SpeedLimit', N'Hız sınırı aşıldı: 104 km/s (sınır 90)'
+SELECT TOP (1) VehicleId, LocationId, 'SpeedLimit', N'Hız sınırı aşıldı: 104 km/s (araç sınırı 90)'
 FROM dbo.LocationRecords
 WHERE VehicleId = 1
 ORDER BY RecordedAt DESC;

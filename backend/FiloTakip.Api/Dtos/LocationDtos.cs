@@ -22,4 +22,5 @@ public record LocationDto(
     decimal SpeedKmh,
     decimal? FuelPercent,
     bool IgnitionOn,
-    DateTime RecordedAt);
+    DateTime RecordedAt,
+    short? RoadSpeedLimitKmh);   // bulunduğu yolun hız sınırı (API bulur); bilinen bir yolda değilse null

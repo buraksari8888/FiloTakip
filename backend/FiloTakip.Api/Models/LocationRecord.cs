@@ -25,6 +25,7 @@ public class LocationRecord
 
     public bool IgnitionOn { get; set; }
     public DateTime RecordedAt { get; set; }        // UTC
+    public short? RoadSpeedLimitKmh { get; set; }   // bulunduğu yolun sınırı (API bulur); bilinen yolda değilse null
 
     public Vehicle? Vehicle { get; set; }
 }

@@ -23,7 +23,13 @@ import { GeofenceApi } from '../../geofences/geofence-api';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
 import { VehicleApi } from '../../vehicles/vehicle-api';
-import { isLowFuel, isSpeeding, VehicleLastLocation } from '../../vehicles/vehicle-last-location';
+import {
+  isLowFuel,
+  isSpeeding,
+  speedLimit,
+  speedLimitSource,
+  VehicleLastLocation,
+} from '../../vehicles/vehicle-last-location';
 import { recentTrail, TRAIL_MINUTES, trailSegments } from './trail';
 
 const ISTANBUL: L.LatLngTuple = [41.03, 28.98];
@@ -316,7 +322,7 @@ export class VehicleMap {
       <strong>${escapeHtml(v.plate)}</strong><br>
       ${escapeHtml(v.brand)} ${escapeHtml(v.model)}<br>
       Sürücü: ${escapeHtml(v.driverName ?? '—')}<br>
-      Hız: <span class="${isSpeeding(v) ? 'danger' : ''}">${speed} km/s</span> / ${v.speedLimitKmh}<br>
+      Hız: <span class="${isSpeeding(v) ? 'danger' : ''}">${speed} km/s</span> / ${speedLimit(v)} <small>(${speedLimitSource(v)} sınırı)</small><br>
       Yakıt: <span class="${isLowFuel(v) ? 'warning' : ''}">${fuel}</span><br>
       Kontak: ${ignition}<br>
       Son sinyal: ${lastSignal}`;

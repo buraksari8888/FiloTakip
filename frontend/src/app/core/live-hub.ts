@@ -13,6 +13,7 @@ export interface LocationUpdate {
   fuelPercent: number | null;
   ignitionOn: boolean;
   recordedAt: string; // UTC
+  roadSpeedLimitKmh: number | null; // bulunduğu yolun sınırı (API bulur)
 }
 
 // connecting: ilk bağlantı kuruluyor · connected: canlı · reconnecting: bağlantı yok, yeniden deneniyor

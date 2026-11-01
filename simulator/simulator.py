@@ -38,7 +38,7 @@ ROUTES_FILE = Path(__file__).with_name("routes.json")
 
 
 def load_routes():
-    """routes.json'daki rotaları okur: [{"name", "points": [[enlem, boylam], ...], "stops": [...]}, ...]"""
+    """routes.json'daki rotaları okur: [{"name", "points": [[enlem, boylam], ...], "stops": [...], "limits": [...]}, ...]"""
     return json.loads(ROUTES_FILE.read_text(encoding="utf-8"))
 
 
@@ -62,7 +62,7 @@ def run(api, sims, interval, steps, speedup):
     if speedup != 1:
         log.info("Zaman %g kat hızlı: her %g saniyede %g saniyelik yol gidilir", speedup, interval, interval * speedup)
     for sim in sims:
-        log.info("%-12s yola çıktı (hız sınırı %s km/s)", sim.plate, sim.speed_limit)
+        log.info("%-12s yola çıktı (araç hız sınırı %s km/s, yolda bundan düşükse yolun sınırı)", sim.plate, sim.vehicle_limit)
     log.info("Durdurmak için Ctrl+C")
 
     step = 0
@@ -82,7 +82,7 @@ def run(api, sims, interval, steps, speedup):
                 continue
 
             # Hız ihlali simülatör için bir hata değil, beklenen bir olay: seviyesi INFO, sadece işaretlenir
-            warning = "  ⚠️ HIZ SINIRI AŞILDI" if payload["speedKmh"] > sim.speed_limit else ""
+            warning = f"  ⚠️ HIZ SINIRI AŞILDI (sınır {sim.speed_limit})" if payload["speedKmh"] > sim.speed_limit else ""
             if sim.draining:
                 warning += "  ⛽ DEPODAN YAKIT ÇEKİLİYOR (hırsızlık senaryosu)"
             if sim.idle_started:
