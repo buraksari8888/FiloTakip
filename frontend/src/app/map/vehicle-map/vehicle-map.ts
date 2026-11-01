@@ -30,7 +30,7 @@ import {
   speedLimitSource,
   VehicleLastLocation,
 } from '../../vehicles/vehicle-last-location';
-import { createMap, escapeHtml, markerIcon, toId } from '../map-helpers';
+import { animateMarker, createMap, escapeHtml, MAP_COLORS, markerIcon, toId } from '../map-helpers';
 import { recentTrail, TRAIL_MINUTES, trailSegments } from './trail';
 
 const FOCUS_ZOOM = 16; // tek bir araca ya da alarma yakınlaşırken (sokak düzeyi)
@@ -195,7 +195,7 @@ export class VehicleMap {
 
       let marker = this.markers.get(v.vehicleId);
       if (marker) {
-        marker.setLatLng(position); // var olan işareti yeni konuma taşı
+        animateMarker(marker, position); // var olan işareti yeni konuma kaydır
       } else {
         marker = L.marker(position, { icon: markerIcon(v.plate) }).bindPopup('').addTo(map);
         // Balon açılınca o aracın izi çizilir, kapanınca silinir
@@ -250,7 +250,7 @@ export class VehicleMap {
     }
 
     const position: L.LatLngTuple = [alarm.latitude, alarm.longitude];
-    this.alarmMarker = L.circleMarker(position, { radius: 12, color: '#c62828', weight: 3, fillOpacity: 0.15 })
+    this.alarmMarker = L.circleMarker(position, { radius: 12, color: MAP_COLORS.danger, weight: 3, fillOpacity: 0.15 })
       .bindPopup(this.alarmPopupHtml(alarm))
       .addTo(map);
     map.setView(position, FOCUS_ZOOM);
@@ -319,11 +319,11 @@ export class VehicleMap {
   }
 }
 
-// İz rengi: fade 0 = koyu mavi (#1a62c4), fade 1 = açık mavi (#b4cbee); arası iki rengin karışımı.
-// Saydamlık yerine açık renk kullanıyoruz: saydam çizgiler üst üste binince birbirinin içinden görünürdü.
+// İz rengi: fade 0 = parlak mavi (MAP_COLORS.accent), fade 1 = soluk gri-mavi; arası iki rengin karışımı.
+// Saydamlık yerine soluk renk kullanıyoruz: saydam çizgiler üst üste binince birbirinin içinden görünürdü.
 function trailColor(fade: number): string {
-  const dark = [26, 98, 196];
-  const light = [180, 203, 238];
+  const dark = [76, 141, 255];
+  const light = [120, 138, 168];
   const [r, g, b] = dark.map((d, i) => Math.round(d + (light[i] - d) * fade));
   return `rgb(${r}, ${g}, ${b})`;
 }

@@ -23,7 +23,7 @@ import { LocationUpdate } from '../../core/live-hub';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
 import { VehicleApi } from '../../vehicles/vehicle-api';
-import { createMap, escapeHtml, markerIcon, toId } from '../map-helpers';
+import { createMap, escapeHtml, MAP_COLORS, markerIcon, toId } from '../map-helpers';
 import { distanceKm } from '../vehicle-map/trail';
 import {
   findStops,
@@ -274,7 +274,7 @@ export class RoutePlayback {
     }
 
     // Güzergâhın tamamı soluk gri; üstüne oynatıldıkça gidilmiş yol mavi çizilir (drawProgress)
-    const route = L.polyline(track.latLngsUntil(track.points.length - 1), { color: '#9aa5b4', weight: 4 });
+    const route = L.polyline(track.latLngsUntil(track.points.length - 1), { color: MAP_COLORS.route, weight: 4, opacity: 0.7 });
     route.addTo(this.routeLayer);
 
     for (const stop of stops) {
@@ -290,7 +290,7 @@ export class RoutePlayback {
       if (alarm.latitude === null || alarm.longitude === null) {
         continue;
       }
-      L.circleMarker([alarm.latitude, alarm.longitude], { radius: 8, color: '#c62828', weight: 3, fillOpacity: 0.3 })
+      L.circleMarker([alarm.latitude, alarm.longitude], { radius: 8, color: MAP_COLORS.danger, weight: 3, fillOpacity: 0.3 })
         .bindPopup(this.alarmPopupHtml(alarm))
         .on('click', () => this.seek(Math.max(track.start, Date.parse(alarm.createdAt))))
         .addTo(this.routeLayer);
@@ -320,7 +320,7 @@ export class RoutePlayback {
     // baştan çizmek yavaş olurdu)
     const index = track.indexAt(time);
     if (index !== this.drawnIndex) {
-      this.playedLine ??= L.polyline([], { color: '#1a62c4', weight: 5 }).addTo(map);
+      this.playedLine ??= L.polyline([], { color: MAP_COLORS.accent, weight: 5 }).addTo(map);
       this.playedLine.setLatLngs(track.latLngsUntil(index));
       this.drawnIndex = index;
     }

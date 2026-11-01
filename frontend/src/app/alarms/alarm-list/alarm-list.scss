@@ -18,33 +18,14 @@ h1 {
   gap: 8px;
 }
 
-// "Tümü / Okunmamış" düğme grubu
-.filter {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--surface);
-
-  button {
-    padding: 6px 12px;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    font: inherit;
-    cursor: pointer;
-
-    &.active {
-      background: var(--topbar);
-      color: #fff;
-    }
-  }
-}
-
 // Okunmamış alarmlar öne çıksın
 tr.unread td {
   font-weight: 600;
   background: var(--danger-bg);
+
+  &:first-child {
+    box-shadow: inset 3px 0 0 var(--danger); // satırın solunda kırmızı çizgi
+  }
 }
 
 .plate {
@@ -60,39 +41,36 @@ tr.unread td {
   font-weight: normal;
 }
 
-// Alarm türü etiketi
+// Alarm türü etiketi: türün renginde yazı, aynı rengin soluğu zemin (koyu ve açık temada okunur)
 .chip {
+  --chip: var(--muted);
   display: inline-block;
-  padding: 2px 8px;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--chip) 35%, transparent);
   border-radius: 999px;
+  background: color-mix(in srgb, var(--chip) 15%, transparent);
+  color: var(--chip);
   font-size: 12px;
   font-weight: 600;
-  background: var(--border);
-  color: var(--text);
 
   &.SpeedLimit {
-    background: var(--danger);
-    color: #fff;
+    --chip: var(--danger);
   }
 
   &.LowFuel {
-    background: var(--warning);
-    color: #fff;
+    --chip: var(--warning);
   }
 
   &.FuelDrain {
-    background: var(--fuel-drain);
-    color: #fff;
+    --chip: var(--fuel-drain);
   }
 
   &.Idle {
-    background: var(--idle);
-    color: #fff;
+    --chip: var(--idle);
   }
 
   &.GeofenceEnter,
   &.GeofenceExit {
-    background: var(--geofence);
-    color: #fff;
+    --chip: var(--geofence);
   }
 }

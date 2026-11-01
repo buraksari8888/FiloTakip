@@ -1,5 +1,5 @@
 <header class="topbar">
-  <a class="brand" routerLink="/">🚚 FiloTakip</a>
+  <a class="brand" routerLink="/"><span class="logo" aria-hidden="true">🚚</span> FiloTakip</a>
   <nav>
     <a routerLink="/harita" routerLinkActive="active">Harita</a>
     <a routerLink="/gecmis" routerLinkActive="active">Geçmiş</a>
@@ -15,6 +15,16 @@
   <span class="live" [class]="liveStatus()" [attr.title]="liveStatusText[liveStatus()].title">
     <span class="live-label">{{ liveStatusText[liveStatus()].label }}</span>
   </span>
+
+  <button
+    type="button"
+    class="theme-toggle"
+    [attr.aria-label]="theme.theme() === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'"
+    [title]="theme.theme() === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'"
+    (click)="theme.toggle()"
+  >
+    {{ theme.theme() === 'dark' ? '☀' : '☾' }}
+  </button>
 </header>
 
 <main>

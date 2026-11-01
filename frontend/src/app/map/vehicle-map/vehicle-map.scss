@@ -14,7 +14,8 @@ h1 {
 .map {
   flex: 1;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
 }
 
 @media (max-width: 600px) {

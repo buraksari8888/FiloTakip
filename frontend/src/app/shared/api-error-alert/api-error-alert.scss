@@ -5,6 +5,8 @@
 
 .alert {
   padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-left: 3px solid var(--danger);
   border-radius: 8px;
   background: var(--danger-bg);
   color: var(--danger);

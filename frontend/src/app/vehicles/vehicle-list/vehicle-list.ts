@@ -31,6 +31,10 @@ export class VehicleList {
   protected readonly filtered = computed(() => (this.vehicles() ?? []).filter((v) => matchesSearch(v, this.query())));
 
   protected readonly speedingCount = computed(() => (this.vehicles() ?? []).filter(isSpeeding).length);
+  // Hareket halinde: hızı duruyor sayılma sınırının (3 km/s, API'deki AlarmRules.StationarySpeedKmh) üstünde
+  protected readonly movingCount = computed(
+    () => (this.vehicles() ?? []).filter((v) => v.speedKmh !== null && v.speedKmh >= 3).length,
+  );
   protected readonly lowFuelCount = computed(() => (this.vehicles() ?? []).filter(isLowFuel).length);
 
   // Açık pencere: yeni araç ya da hangi aracın sürücüsü düzenleniyor (null = kapalı).

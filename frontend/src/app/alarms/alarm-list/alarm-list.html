@@ -2,7 +2,7 @@
   <h1>Alarmlar</h1>
 
   <div class="actions">
-    <div class="filter" role="group" aria-label="Filtre">
+    <div class="segmented" role="group" aria-label="Filtre">
       <button type="button" [class.active]="!unreadOnly()" (click)="unreadOnly.set(false)">Tümü</button>
       <button type="button" [class.active]="unreadOnly()" (click)="unreadOnly.set(true)">
         Okunmamış ({{ unreadCount() }})

@@ -12,6 +12,26 @@
 }
 
 @if (vehicles(); as list) {
+  <!-- Özet kartları: filonun anlık durumu (arama süzgecinden bağımsız, bütün araçlar) -->
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-label">Araç</span>
+      <span class="stat-value">{{ list.length }}</span>
+    </div>
+    <div class="stat moving">
+      <span class="stat-label">Hareket halinde</span>
+      <span class="stat-value">{{ movingCount() }}</span>
+    </div>
+    <div class="stat speeding" [class.alert]="speedingCount() > 0">
+      <span class="stat-label">Hız ihlali</span>
+      <span class="stat-value">{{ speedingCount() }}</span>
+    </div>
+    <div class="stat low-fuel" [class.alert]="lowFuelCount() > 0">
+      <span class="stat-label">Düşük yakıt</span>
+      <span class="stat-value">{{ lowFuelCount() }}</span>
+    </div>
+  </div>
+
   <div class="toolbar">
     <input
       class="search"
@@ -21,15 +41,9 @@
       [value]="query()"
       (input)="query.set($any($event.target).value)"
     />
-    <p class="summary">
-      @if (query().trim()) {
-        {{ filtered().length }} / {{ list.length }} araç
-      } @else {
-        {{ list.length }} araç
-      }
-      · <span [class.danger]="speedingCount() > 0">{{ speedingCount() }} hız ihlali</span>
-      · <span [class.warning]="lowFuelCount() > 0">{{ lowFuelCount() }} düşük yakıt</span>
-    </p>
+    @if (query().trim()) {
+      <p class="summary">{{ filtered().length }} / {{ list.length }} araç</p>
+    }
   </div>
 
   <div class="table-wrap">
