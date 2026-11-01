@@ -36,13 +36,28 @@ export function animateMarker(marker: L.Marker, to: L.LatLngTuple, durationMs = 
   animations.set(marker, requestAnimationFrame(step));
 }
 
-// İstanbul'a bakan, OpenStreetMap altlıklı boş bir harita
+// Dünyanın tamamı. Enlem ±85: düz harita (Web Mercator) kutupları gösteremez, OpenStreetMap de bu sınırda biter.
+const WORLD = L.latLngBounds([-85, -180], [85, 180]);
+
+// İstanbul'a bakan, OpenStreetMap altlıklı boş bir harita. Dünya tek kopya: Leaflet varsayılan olarak
+// uzaklaşınca dünyayı yan yana tekrarlar, kaydırınca araçlar başka bir kopyada kalıp kaybolurdu.
 export function createMap(element: HTMLElement): L.Map {
-  const map = L.map(element).setView(ISTANBUL, 11);
+  const map = L.map(element, {
+    maxBounds: WORLD, // dünyanın dışına kaydırılamaz
+    maxBoundsViscosity: 1, // sınırda yumuşakça esnemek yerine tam durur
+  }).setView(ISTANBUL, 11);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
+    noWrap: true, // dünyayı yan yana tekrarlama
+    bounds: WORLD,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> katkıcıları',
   }).addTo(map);
+
+  // En fazla, dünya harita kutusunu tam dolduracak kadar uzaklaşılabilsin (kenarlarda boşluk kalmasın).
+  // Bu, kutunun boyutuna bağlı; pencere boyutu değişince yeniden hesaplanır.
+  const fitWorld = () => map.setMinZoom(map.getBoundsZoom(WORLD, true));
+  fitWorld();
+  map.on('resize', fitWorld);
   return map;
 }
 
