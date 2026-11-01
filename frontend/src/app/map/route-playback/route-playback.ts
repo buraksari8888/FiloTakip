@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe, formatDate } from '@angular/common';
+import { DatePipe, DecimalPipe, formatDate, formatNumber } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   afterNextRender,
@@ -19,10 +19,12 @@ import * as L from 'leaflet';
 import { finalize, forkJoin, Subscription } from 'rxjs';
 import { Alarm, ALARM_TYPE_LABELS } from '../../alarms/alarm';
 import { AlarmApi } from '../../alarms/alarm-api';
+import { LocationUpdate } from '../../core/live-hub';
 import { ApiErrorAlert } from '../../shared/api-error-alert/api-error-alert';
 import { LiveVehicles } from '../../vehicles/live-vehicles';
 import { VehicleApi } from '../../vehicles/vehicle-api';
 import { createMap, escapeHtml, markerIcon, toId } from '../map-helpers';
+import { distanceKm } from '../vehicle-map/trail';
 import {
   findStops,
   formatDuration,
@@ -32,6 +34,11 @@ import {
   Stop,
   Track,
 } from './playback';
+
+// Bir ekran karesinde en fazla bu kadar gerçek süre sayılır (sekme arka plandan dönünce ileri fırlamasın)
+const MAX_FRAME_MS = 100;
+// Atlanan veri boşluğu yazısı ekranda kaç milisaniye kalsın
+const SKIP_NOTICE_MS = 4000;
 
 // Geçmiş rota oynatma: seçilen aracın seçilen saat aralığındaki yolu haritada baştan oynatılır.
 // Duraklar ve o aralıktaki alarmlar haritada işaretlenir.
@@ -83,6 +90,24 @@ export class RoutePlayback {
     return track ? track.points[track.indexAt(this.time())] : null;
   });
 
+  // İlerleme çubuğunun altında verinin olduğu aralıklar (yüzde olarak). Aradaki boşluklarda veri yok,
+  // oynatma oraları atlar: kullanıcı atlamanın nedenini görsün.
+  protected readonly dataSpans = computed(() => {
+    const track = this.track();
+    if (!track || track.end === track.start) {
+      return [];
+    }
+    const duration = track.end - track.start;
+    return track.parts.map(([first, last]) => ({
+      left: ((track.times[first] - track.start) / duration) * 100,
+      width: Math.max(((track.times[last] - track.times[first]) / duration) * 100, 0.4), // tek noktalık parça da görünsün
+    }));
+  });
+
+  // Son atlanan veri boşluğu (ekranda birkaç saniye yazar): boşluktan önceki son ve sonraki ilk konum
+  protected readonly skipped = signal<{ from: LocationUpdate; to: LocationUpdate } | null>(null);
+  private skipNoticeTimer: ReturnType<typeof setTimeout> | undefined;
+
   private animationFrame: number | null = null;
   private lastFrameAt = 0;
 
@@ -115,6 +140,7 @@ export class RoutePlayback {
 
     this.destroyRef.onDestroy(() => {
       this.pause();
+      clearTimeout(this.skipNoticeTimer);
       this.map()?.remove();
     });
   }
@@ -148,6 +174,7 @@ export class RoutePlayback {
     }
 
     this.pause();
+    this.skipped.set(null);
     this.formError.set(null);
     this.apiError.set(null);
     this.loading.set(true);
@@ -205,9 +232,16 @@ export class RoutePlayback {
     if (!track) {
       return;
     }
-    const elapsedMs = now - this.lastFrameAt;
+    // Sekme arka plandayken tarayıcı kareleri durdurur; geri gelince geçen bütün süre tek karede
+    // oynatılırsa araç ileri fırlardı. Bir karede en fazla MAX_FRAME_MS'lik süre sayılır.
+    const elapsedMs = Math.min(now - this.lastFrameAt, MAX_FRAME_MS);
     this.lastFrameAt = now;
-    const time = track.advance(this.time(), elapsedMs * this.speed() * SECONDS_PER_SECOND_AT_1X);
+    const target = this.time() + elapsedMs * this.speed() * SECONDS_PER_SECOND_AT_1X;
+    const time = track.advance(this.time(), target - this.time());
+    if (time > target) {
+      // advance veri boşluğunu atladı
+      this.showSkipped(track.points[track.indexAt(target)], track.points[track.indexAt(time)]);
+    }
     this.time.set(time);
     if (time >= track.end) {
       this.pause();
@@ -215,6 +249,22 @@ export class RoutePlayback {
       this.animationFrame = requestAnimationFrame(this.tick);
     }
   };
+
+  private showSkipped(from: LocationUpdate, to: LocationUpdate): void {
+    this.skipped.set({ from, to });
+    clearTimeout(this.skipNoticeTimer);
+    this.skipNoticeTimer = setTimeout(() => this.skipped.set(null), SKIP_NOTICE_MS);
+  }
+
+  // "08:43:09 → 16:38:39 arası veri yok (7 sa 55 dk), araç 6,3 km ötede devam ediyor"
+  protected skippedText(from: LocationUpdate, to: LocationUpdate): string {
+    const seconds = (Date.parse(to.recordedAt) - Date.parse(from.recordedAt)) / 1000;
+    const km = formatNumber(distanceKm(from, to), this.locale, '1.0-1');
+    return (
+      `${formatDate(from.recordedAt, 'HH:mm:ss', this.locale)} → ${formatDate(to.recordedAt, 'HH:mm:ss', this.locale)} ` +
+      `arası veri yok (${formatDuration(seconds)}), araç ${km} km ötede devam ediyor`
+    );
+  }
 
   private drawRoute(map: L.Map, track: Track | null, stops: Stop[], alarms: Alarm[]): void {
     this.routeLayer ??= L.layerGroup().addTo(map);

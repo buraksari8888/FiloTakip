@@ -49,16 +49,23 @@
         </button>
       }
     </div>
-    <input
-      class="progress"
-      type="range"
-      aria-label="Oynatma ilerlemesi"
-      [min]="track.start"
-      [max]="track.end"
-      step="1000"
-      [value]="time()"
-      (input)="seek(+$any($event.target).value)"
-    />
+    <div class="progress">
+      <input
+        type="range"
+        aria-label="Oynatma ilerlemesi"
+        [min]="track.start"
+        [max]="track.end"
+        step="1000"
+        [value]="time()"
+        (input)="seek(+$any($event.target).value)"
+      />
+      <!-- Verinin olduğu aralıklar; aradaki boşluklar (cihaz kapalı, simülatör durmuş) oynatmada atlanır -->
+      <div class="data-spans" title="Mavi: konum verisi var. Boşluklar oynatmada atlanır.">
+        @for (span of dataSpans(); track $index) {
+          <span [style.left.%]="span.left" [style.width.%]="span.width"></span>
+        }
+      </div>
+    </div>
     <span class="clock">{{ time() | date: 'HH:mm:ss' }}</span>
   </div>
 
@@ -68,10 +75,15 @@
       {{ p.fuelPercent === null ? '—' : '%' + (p.fuelPercent | number: '1.0-1') }} · kontak
       {{ p.ignitionOn ? 'açık' : 'kapalı' }}
       <span class="muted">
-        · {{ track.points.length }} konum, {{ stops().length }} durak, {{ alarms().length }} alarm
+        · {{ track.points.length }} konum, {{ stops().length }} durak, {{ alarms().length }} alarm,
+        {{ track.parts.length - 1 }} veri boşluğu
         ({{ track.start | date: 'HH:mm' }} – {{ track.end | date: 'HH:mm' }})
       </span>
     </p>
+  }
+
+  @if (skipped(); as gap) {
+    <p class="skip-notice" role="status">⏭ {{ skippedText(gap.from, gap.to) }}, atlandı.</p>
   }
 } @else if (loaded() && !loading() && !apiError()) {
   <p class="muted">Bu aralıkta konum kaydı yok.</p>
