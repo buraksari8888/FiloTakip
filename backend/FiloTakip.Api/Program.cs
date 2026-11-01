@@ -3,8 +3,28 @@ using FiloTakip.Api.Errors;
 using FiloTakip.Api.Hubs;
 using FiloTakip.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Loglar ekrana (konsol) yazılmaya devam eder, ayrıca günlük dosyalara da yazılır: logs/api-20261101.log
+// (Serilog kütüphanesiyle). Hangi logun yazılacağına ikisinde de Logging:LogLevel ayarı karar verir.
+// Klasör ve kaç dosya saklanacağı: appsettings > LogFiles. Göreli klasör API projesinin klasörüne göredir.
+var logFiles = builder.Configuration.GetSection("LogFiles");
+var logDirectory = Path.Combine(builder.Environment.ContentRootPath, logFiles["Directory"] ?? "logs");
+var fileLogger = new LoggerConfiguration()
+    .MinimumLevel.Verbose() // süzmeyi Serilog değil Logging:LogLevel yapsın (ekranla aynı loglar)
+    .WriteTo.File(
+        Path.Combine(logDirectory, "api-.log"), // tarih araya girer: api-20261101.log
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: logFiles.GetValue("RetainedFileCount", 14), // eskiler kendiliğinden silinir
+        fileSizeLimitBytes: 50 * 1024 * 1024, // bir günün dosyası 50 MB'ı geçerse api-20261101_001.log'a devam
+        rollOnFileSizeLimit: true,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3} {SourceContext}: {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+// AddSerilog() kısayolu değil: o, Logging:LogLevel ayarını yok sayıp her seviyeyi (Debug dahil) yazdırıyor
+builder.Logging.AddProvider(new SerilogLoggerProvider(fileLogger));
 
 // Add services to the container.
 
@@ -45,6 +65,9 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// API kapanırken log dosyası düzgünce kapatılsın
+app.Lifetime.ApplicationStopped.Register(fileLogger.Dispose);
 
 // Configure the HTTP request pipeline.
 

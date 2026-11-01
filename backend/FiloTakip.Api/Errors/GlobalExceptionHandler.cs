@@ -24,7 +24,9 @@ public class GlobalExceptionHandler(IProblemDetailsService problemDetails, ILogg
             return true;
         }
 
-        logger.LogError(exception, "Beklenmeyen hata: {Method} {Path} (traceId {TraceId})",
+        // Alanın adı TraceId değil ErrorCode: TraceId adını Serilog kendisi kullanıyor, log dosyasına
+        // kullanıcının gördüğü numara yerine sadece ortadaki parçası yazılıyordu (dosyada aranınca bulunmuyordu)
+        logger.LogError(exception, "Beklenmeyen hata: {Method} {Path} (traceId {ErrorCode})",
             context.Request.Method, context.Request.Path, traceId);
 
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
